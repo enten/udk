@@ -11,6 +11,19 @@
 
 ## Implementation
 
+### Overriding
+
+* `+` [udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)
+* `+` [udk/lib/utilWatchpack2.js](https://github.com/enten/udk/blob/master/lib/util/Watchpack2.js)
+* `+` [udk/lib/utilWatchpackCompiler.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackCompiler.js)
+* `+` [udk/lib/utilWatchpackFork.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackFork.js)
+* `+` [udk/lib/utildebug.js](https://github.com/enten/udk/blob/master/lib/util/debug.js)
+* `+` [udk/lib/utilrunSeries.js](https://github.com/enten/udk/blob/master/lib/util/runSeries.js)
+* [webpack/bin/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/bin/webpack.js) `->` [udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)
+* [webpack/lib/Compiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js) `->` [udk/lib/Compiler.js](https://github.com/enten/udk/blob/master/lib/Compiler.js)
+* [webpack/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js) `->` [udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)
+* [webpack/lib/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/webpack.js) `->` [udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)
+
 ### Class diagram
 
 ```
@@ -38,5 +51,5 @@
 * [udk/lib/MultiCompiler](https://github.com/enten/udk/blob/e8ff9e6cecf7432b0a6e00ec0d206277e946381d/lib/MultiCompiler.js)
 * [udk/lib/Watching](https://github.com/enten/udk/blob/e8ff9e6cecf7432b0a6e00ec0d206277e946381d/lib/Compiler.js#L44)
 * [webpack/lib/Compiler](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js#L170)
-* [webpack/lib/Watching](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js#L17)
 * [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js)
+* [webpack/lib/Watching](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js#L17)
