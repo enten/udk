@@ -91,6 +91,9 @@ udk <entry> [<entry>] <output>
 
 Same as [webpack's Node.js API](https://webpack.js.org/api/node/).
 
+*Using `udk(String projectContext?, String|[String] configFilePath)` signature allows udk
+to watch on config files and restarts the watching loop if a change occurred.*
+
 ```javascript
 udk(
   String|[String]|Object|[Object] options,
