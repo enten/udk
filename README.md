@@ -15,7 +15,25 @@
 npm install --save-dev udk webpack
 ```
 
+## Command Line Interface (CLI)
+
+Same as [webpack's CLI](https://webpack.js.org/api/cli/).
+
+### [Usage with config file](https://webpack.js.org/api/cli/#usage-with-config-file)
+
+```shell
+webpack [--config webpack.config.js]
+```
+
+### [Usage without config file](https://webpack.js.org/api/cli/#usage-without-config-file)
+
+```shell
+webpack <entry> [<entry>] <output>
+```
+
 ## Node.js API
+
+Same as [webpack's Node.js API](https://webpack.js.org/api/node/).
 
 ```javascript
 udk(
