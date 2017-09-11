@@ -19,16 +19,18 @@ npm install --save-dev udk webpack
 
 Same as [webpack's CLI](https://webpack.js.org/api/cli/).
 
+*The only difference is that [udk watch on config files and restarts the process if a change occurred](https://github.com/enten/udk/blob/75ca9cc7d20e001d75daeb82698c311b8a462645/bin/udk.js#L274).*
+
 ### [Usage with config file](https://webpack.js.org/api/cli/#usage-with-config-file)
 
 ```shell
-webpack [--config webpack.config.js]
+udk [--config webpack.config.js]
 ```
 
 ### [Usage without config file](https://webpack.js.org/api/cli/#usage-without-config-file)
 
 ```shell
-webpack <entry> [<entry>] <output>
+udk <entry> [<entry>] <output>
 ```
 
 ## Node.js API
