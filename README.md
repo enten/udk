@@ -12,7 +12,7 @@
 ## Install
 
 ```shell
-npm i --save-dev udk webpack
+npm install --save-dev udk webpack
 ```
 
 ## Node.js API
@@ -106,7 +106,7 @@ const watching = compiler.watch(
   (err, stats) => console.log({err, stats})
 )
 
-watching.close(() => console.log('Stop watching))
+watching.close(() => console.log('Stop watching'))
 ```
 
 ## Implementation
