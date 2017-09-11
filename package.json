@@ -1,0 +1,38 @@
+{
+  "name": "udk",
+  "version": "0.0.0",
+  "description": "Universal Development Kit",
+  "main": "lib/udk.js",
+  "bin": {
+    "udk": "./bin/udk.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enten/udk.git"
+  },
+  "keywords": [
+    "universal",
+    "development",
+    "kit"
+  ],
+  "author": "Steven Enten <steven@enten.fr>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/enten/udk/issues"
+  },
+  "homepage": "https://github.com/enten/udk",
+  "peerDependencies": {
+    "webpack": "^3.0.0"
+  },
+  "dependencies": {
+    "debug": "^3.0.0",
+    "dependency-graph": "^0.5.0",
+    "killer": "^0.1.0"
+  },
+  "devDependencies": {
+    "webpack": "^3.5.5"
+  }
+}
