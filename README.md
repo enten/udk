@@ -15,6 +15,60 @@
 npm install --save-dev udk webpack
 ```
 
+## The Gist
+
+```javascript
+// webpack.config.js
+const client = {
+  name: 'client',
+  entry: './client.js',
+  output: {
+    path: __dirname + '/build/client',
+    filename: '[name].js'
+  }
+}
+
+const server = {
+  name: 'server',
+  dependencies: ['client'],
+  entry: './client.js',
+  output: {
+    path: __dirname + '/build/client',
+    filename: '[name].js'
+  }
+}
+
+module.exports = [
+  client,
+  server
+]
+```
+
+```javascript
+// client.js
+require('./shared.js')
+
+console.log('Hello, client')
+```
+
+```javascript
+// server.js
+require('./shared.js')
+
+console.log('Hello, server')
+```
+
+```javascript
+// shared.js
+console.log('Hello, shared')
+```
+
+```shell
+DEBUG=udk:* ./node_modules/.bin/udk.js --config webpack.config.js --watch
+```
+
+Now, try to update each file (`webpack.config.js` too) and check the output.
+
 ## Command Line Interface (CLI)
 
 Same as [webpack's CLI](https://webpack.js.org/api/cli/).
