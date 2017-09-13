@@ -98,7 +98,7 @@ to watch on config files and restarts the watching loop if a change occurred.*
 udk(
   String|[String]|Object|[Object] options,
   Function callback?
-) : UDK Compiler?
+) : Compiler?
 
 // Examples
 const udk = require('udk')
@@ -117,7 +117,7 @@ udk(__dirname + '/webpack.config.js', (err, stats) => console.log({err, stats}))
 udk(
   String projectContext, String|[String] configFilePath,
   Function callback?
-) : UDK Compiler?
+) : Compiler?
 
 // Examples
 const udk = require('udk')
@@ -132,7 +132,7 @@ const compiler = udk(__dirname, [
 udk(__dirname, 'webpack.config.js', (err, stats) => console.log({err, stats}))
 ```
 
-### UDK Compiler
+### Compiler
 
 #### run
 
@@ -153,7 +153,7 @@ compiler.run((err, stats) => console.log({err, stats}))
 watch(
   Object watchOptions,
   Function handler
-) : Compiler Watching
+) : Watching
 
 // Example
 const udk = require('udk')
@@ -166,7 +166,7 @@ const watching = compiler.watch(
 )
 ```
 
-### UDK Compiler Watching
+### Watching
 
 #### close
 
