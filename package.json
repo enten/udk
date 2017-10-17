@@ -4,7 +4,8 @@
   "description": "Universal Development Kit",
   "main": "lib/udk.js",
   "bin": {
-    "udk": "./bin/udk.js"
+    "udk": "./bin/udk.js",
+    "udkc": "./bin/udkc.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
