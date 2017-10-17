@@ -73,7 +73,7 @@ Now, try to update each file (`webpack.config.js` too) and check the output.
 
 Same as [webpack's CLI](https://webpack.js.org/api/cli/).
 
-*The only difference is that [udk watch on config files and restarts the process if a change occurred](https://github.com/enten/udk/blob/75ca9cc7d20e001d75daeb82698c311b8a462645/bin/udk.js#L274).*
+*The only difference is that [udk watches on config files and restarts the process if a change occurred](https://github.com/enten/udk/blob/75ca9cc7d20e001d75daeb82698c311b8a462645/bin/udk.js#L274).*
 
 ### [Usage with config file](https://webpack.js.org/api/cli/#usage-with-config-file)
 
@@ -91,8 +91,7 @@ udk <entry> [<entry>] <output>
 
 Same as [webpack's Node.js API](https://webpack.js.org/api/node/).
 
-*Using `udk(String projectContext?, String|[String] configFilePath)` signature allows udk
-to watch on config files and restarts the watching loop if a change occurred.*
+*The only difference is that udk accepts path to webpack config*
 
 ```javascript
 udk(
@@ -192,7 +191,6 @@ watching.close(() => console.log('Stop watching'))
 
 * `+` [udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)
 * `+` [udk/lib/utilWatchpack2.js](https://github.com/enten/udk/blob/master/lib/util/Watchpack2.js)
-* `+` [udk/lib/utilWatchpackCompiler.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackCompiler.js)
 * `+` [udk/lib/utilWatchpackFork.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackFork.js)
 * `+` [udk/lib/utildebug.js](https://github.com/enten/udk/blob/master/lib/util/debug.js)
 * `+` [udk/lib/utilrunSeries.js](https://github.com/enten/udk/blob/master/lib/util/runSeries.js)

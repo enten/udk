@@ -270,10 +270,6 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 
 				var watchpackFork = new WatchpackFork(watchOptions);
 
-				watchpackFork.on("aggregated", () => {
-					watchpackFork.close(() => watchpackFork.watch());
-				});
-
 				watchpackFork.on("change", () => {
 					console.log("Webpack config changed…");
 				});
