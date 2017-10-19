@@ -265,7 +265,8 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 
 				watchOptions = Object.assign({}, watchOptions, {
 					fork: __filename,
-					files: configFiles.map((configFile)=> configFile.path)
+					files: configFiles.map((configFile)=> configFile.path),
+					restartAfterAggregation: true
 				});
 
 				var watchpackFork = new WatchpackFork(watchOptions);
