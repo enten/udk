@@ -8,7 +8,7 @@
 * Designed on webpack's standard API
 * Enhances compilers dependencies: sequential compilation according to dependency graph
 * Enhances CLI watching: restarts watching process when webpack config changes
-* [Dev container](#dev-container) to inject client's stats into server's requests
+* [Dev container](#dev-container) to inject client's stats into server's requests, to serve client's assets and to enable [HMR](https://webpack.js.org/concepts/hot-module-replacement/) on client and server sides
 
 ## Install
 
@@ -106,15 +106,25 @@ A dev container fork a child process which will perform some operations to incre
 
 * It need a container configuration file (standard configuration names are `udk.container.js`, `udk.config.js` or `udkfile.js`) ;
 * That container configuration can be empty or can specify some options and functions to change or override the child process behavior ;
+* If the option `hmr` is enabled (default behavior), client and server configurations will be update to inject entries and plugins needed for [HMR](https://webpack.js.org/concepts/hot-module-replacement/):
+  * Client's config: prepend entry [`webpack-hot-middleware/client.js`](https://github.com/glenjamin/webpack-hot-middleware/blob/master/client.js) and add webpack's plugins `HotModuleReplacementPlugin` and `NoEmitOnErrorsPlugin` ;
+  * Client's config: prepend entry [`webpack/hot/poll.js`](https://github.com/webpack/webpack/blob/master/hot/poll.js) and add webpack's plugins `HotModuleReplacementPlugin` and `NoEmitOnErrorsPlugin` ;
 * The child process instantiates a compiler (based on webpack config file found along the container config file) and executes its `watch` method ;
 * When a compilation is done the child process will require the server bundle (which has `node` as target) ;
 * The server bundle can be restarted at each compilation with the container option `serverAutoRestart` ;
-* If the server bundle exports an http server instance, the child process will try to decorate the request handler to inject the client stats (in JSON format) in each request under `res.locals.webpackClientStats` ;
+* If the server bundle exports an http server instance, the child process will try to decorate the request handler:
+  * It serves client's assets according to its stats under the webpack config options [`output.publicPath`](https://webpack.js.org/configuration/output/#output-publicpath) (or "/" by default) ;
+  * It uses [webpack-hot-middleware](https://github.com/glenjamin/webpack-hot-middleware) if option `hmr` is enabled ;
+  * It injects the client stats (in JSON format) in each request under `res.locals.webpackClientStats` ;
+* If the server bundle exports an http server instance, the child process will try to decorate 
+* If option `hmr` is enable and the server bundle exports an http server instance, 
 * The container will restart the child process when a metafile has changed (container config, webpack config and each metafiles specify in the container config under the option `metafiles`).
 
 ### Usage example
 
 *If you don't need to override default options and functions of the dev container, you can leave container configuration file empty.*
+
+*Note: the functions below are a simplified version of real ones*
 
 ```shell
 $ ./node_modules/.bin/udkc ./udk.container.js
@@ -125,33 +135,46 @@ $ ./node_modules/.bin/udkc ./udk.container.js
 
 const logger = console
 
-// note: values below are set by default
-
 module.exports = {
   options: {
+    // note: values below are set by default
     context: process.cwd(),
+    hmr: {
+      hotPollInterval: 1000, // option used for server entry webpack/hot/poll.js?${hotPollInterval}
+      hotMiddleware: { // same as webpack-hot-middleware's options
+        path: '/__webpack_hmr'
+      },
+      hotMiddlewareClient: { // same as webpack-hot-middleware's client options
+        
+      },
+      plugin: { // same as webpack's HotModuleReplacementPlugin options
+
+      }
+    },
     metafiles: [],
     serverAutoRestart: false,
     serverEntry: 'main',
-    stats: { // same as webpack's stats option
+    stats: { // same as webpack's stats options
       colors: true,
       source: false
     },
-    watch: { // same as webpack's watch option
+    watch: { // same as webpack's watch options
       aggregateTimeout: 200
     },
     webpackConfig: 'webpack.config.js'
   },
   logger,
   // functions below are called in container process
-  onRestart: () => C.logger.info('> RESTART'),
+  onRestart: () => {
+    logger.info('> restart container')
+  },
   setupWatcher: (watcher) => {
     watcher.on('aggregated', () => {
-      logger.info('> file changes aggregated')
+      logger.info('> metafile changes aggregated')
     })
   },
   // functions below are called in child process
-  decorateServer: (httpServer) => {
+  decorateServer: (httpServer, multiCompiler) => {
     const serverEvents = httpServer && httpSserver._events
     const requestHandler = serverEvents && serverEvents.request
 
@@ -171,7 +194,6 @@ module.exports = {
   },
   setupCompiler: (compiler) => {
     compiler.plugin('done', (stats) => {
-      logger.info(stats.toString(module.exports.options.stats))
       logger.info('>>> compilation done!')
     })
 
@@ -283,8 +305,6 @@ const client = {
   },
   plugins: compact(
     isDev && [
-      new webpack.HotModuleReplacementPlugin(),
-      new webpack.NoEmitOnErrorsPlugin(),
       new webpack.NamedModulesPlugin()
     ],
     isProd && [
@@ -315,7 +335,6 @@ const server = {
   devtool,
   entry: compact(
     'source-map-support/register',
-    isDev && 'webpack/hot/poll?1000',
     serverEntry
   ),
   output: {
@@ -349,8 +368,6 @@ const server = {
   }),
   plugins: compact(
     isDev && [
-      new webpack.HotModuleReplacementPlugin(),
-      new webpack.NoEmitOnErrorsPlugin(),
       new webpack.NamedModulesPlugin()
     ],
     isProd && [
@@ -414,7 +431,6 @@ app.use((req, res) => {
           ${JSON.stringify(webpackClientStats, null, 2)}
         </pre>
       </body>
-      <!-- FOO BAR -->
     </html>
   `)
 })

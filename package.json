@@ -31,7 +31,9 @@
   "dependencies": {
     "debug": "^3.0.0",
     "dependency-graph": "^0.5.0",
-    "killer": "^0.1.0"
+    "killer": "^0.1.0",
+    "serve-static": "^1.13.1",
+    "webpack-hot-middleware": "^2.20.0"
   },
   "devDependencies": {
     "webpack": "^3.5.5"
