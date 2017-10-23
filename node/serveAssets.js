@@ -36,8 +36,7 @@ function serveAssets (router, options = {}) {
 
   if (hideStats) {
     router.use(publicPath + statsFilename, (req, res) => {
-      res.status(404)
-      res.end()
+      res.sendStatus(403)
     })
   }
 
