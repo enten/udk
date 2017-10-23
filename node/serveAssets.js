@@ -20,6 +20,7 @@ function serveAssets (router, options = {}) {
   }
 
   const {
+    hideSourceMaps = true,
     hideStats = true,
     outputPath,
     publicPath = '/',
@@ -33,6 +34,16 @@ function serveAssets (router, options = {}) {
 
   const decorateRequest = requestDecorator(stats)
   const serve = serveStatic(outputPath)
+
+  if (hideSourceMaps) {
+    router.use(publicPath, (req, res, next) => {
+      if (req.url.endsWith('.map')) {
+        return res.sendStatus(403)
+      }
+
+      next()
+    })
+  }
 
   if (hideStats) {
     router.use(publicPath + statsFilename, (req, res) => {
