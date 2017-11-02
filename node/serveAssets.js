@@ -1,10 +1,10 @@
 const {readFileSync} = require('fs')
 const {resolve} = require('path')
 
-function createRequestDecorator (stats) {
+function createStatsInjector (stats) {
   return (req, res, next) => {
     res.locals = res.locals || Object.create(null)
-    res.locals.webpackClientStats = stats
+    res.locals.webpackStats = Object.assign({}, res.locals.webpackStats, stats)
 
     next && next()
   }
@@ -16,23 +16,28 @@ function serveAssets (router, options = {}) {
   }
 
   if (typeof arguments[2] === 'function') {
-    options.requestDecorator = arguments[2]
+    options.injectStats = arguments[2]
   }
 
   const {
     hideSourceMaps = true,
     hideStats = true,
+    injectStats = createStatsInjector,
+    name,
     outputPath,
     publicPath = '/',
     statsFilename = 'stats.json',
-    serveStatic,
-    requestDecorator = createRequestDecorator
+    serveStatic
   } = options
 
   const statsPath = resolve(outputPath, statsFilename)
-  const stats = JSON.parse(readFileSync(statsPath, 'utf8'))
+  let stats = JSON.parse(readFileSync(statsPath, 'utf8'))
 
-  const decorateRequest = requestDecorator(stats)
+  if (name) {
+    stats = {[name]: stats}
+  }
+
+  const decorateRequest = injectStats(stats)
   const serve = serveStatic(outputPath)
 
   if (hideSourceMaps) {
@@ -55,6 +60,7 @@ function serveAssets (router, options = {}) {
   router.use(decorateRequest)
 }
 
-exports = module.exports = serveAssets.bind()
-exports.createRequestDecorator = createRequestDecorator
-exports.serveAssets = serveAssets
+module.exports = Object.assign(serveAssets.bind(), {
+  createStatsInjector,
+  serveAssets
+})

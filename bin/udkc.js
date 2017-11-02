@@ -9,13 +9,4 @@ try {
 
 const devContainer = require('../lib/devContainer')
 
-let uconfigPath
-let udkc
-
-if (process.argv.length > 2) {
-  uconfigPath = process.argv[2]
-}
-
-udkc = devContainer(uconfigPath)
-
-udkc.run()
+devContainer.apply(null, process.argv.slice(2)).run()
