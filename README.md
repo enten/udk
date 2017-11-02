@@ -2,8 +2,6 @@
 
 > Webpack extension which improves universal application development.
 
-:warning: Still in its poc phase
-
 * Starts universal application development fastly (from scratch/without boilerplate)
 * Designed on webpack's standard API
 * Enhances compilers dependencies: sequential compilation according to dependency graph
@@ -116,16 +114,16 @@ A dev container is forked in a child process and performs some operations to inc
 
 ### How it works
 
-* **It need a container configuration file**. Standard configuration names are: `udk.container.js`, `udk.config.js` and `udkfile.js`).
+* **It need a container configuration file**. Standard configuration names are: `udk.container.js`, `udk.config.js` and `udkfile.js`.
 * That container configuration **can be empty or specify some options** to change or override the container behavior.
 * If the option `hmr` is enabled (default behavior), *node* and *web* configurations are updated to inject entries and plugins needed for [HMR](https://webpack.js.org/concepts/hot-module-replacement/).
-  * All configs: add plugins [`NoEmitOnErrorsPlugin`](https://webpack.js.org/plugins/no-emit-on-errors-plugin/) and [`HotModuleReplacementPlugin`](https://webpack.js.org/plugins/hot-module-replacement-plugin/).
-  * Node configs: prepend entry [`webpack/hot/poll.js`](https://github.com/webpack/webpack/blob/master/hot/poll.js).
-  * Web configs: prepend entry [`webpack-hot-middleware/client.js`](https://github.com/glenjamin/webpack-hot-middleware/blob/master/client.js).
-* The container instantiates a compiler (based on webpack config file found along the container config file) and calls the `watch` method.
+  * All configs: add plugins [`NoEmitOnErrorsPlugin`](https://webpack.js.org/plugins/no-emit-on-errors-plugin/) and [`HotModuleReplacementPlugin`](https://webpack.js.org/plugins/hot-module-replacement-plugin/)
+  * Node configs: prepend entry [`webpack/hot/poll.js`](https://github.com/webpack/webpack/blob/master/hot/poll.js)
+  * Web configs: prepend entry [`webpack-hot-middleware/client.js`](https://github.com/glenjamin/webpack-hot-middleware/blob/master/client.js)
+* The container instantiates a compiler (based on webpack config file found along the container config file) and calls the [`watch`](https://webpack.js.org/api/node/#watching) method.
 * When a compilation is done the container requires node bundles (configurations which has `node` as target).
 * Node bundles can be restarted at each compilation with the container option `autoRestart`.
-* If a node bundle exports an [http server instance](https://nodejs.org/api/http.html#http_class_http_server), the container tries to decorate the request handler.
+* If a node bundle exports an [http server instance](https://nodejs.org/api/http.html#http_class_http_server), the container tries to decorate the request listener.
   * It serves client's assets according to its stats under the webpack config options [`output.publicPath`](https://webpack.js.org/configuration/output/#output-publicpath) (or "/" by default).
   * It uses [webpack-hot-middleware](https://github.com/glenjamin/webpack-hot-middleware) if option `hmr` is enabled.
   * It injects the client stats (in JSON format) in each request under `res.locals.webpackStats`.
