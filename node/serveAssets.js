@@ -27,8 +27,9 @@ function serveAssets (router, options = {}) {
     outputPath,
     publicPath = '/',
     statsFilename = 'stats.json',
-    serveStatic
   } = options
+
+  const createServeStatic = options.serveStatic || require('serve-static')
 
   const statsPath = resolve(outputPath, statsFilename)
   let stats = JSON.parse(readFileSync(statsPath, 'utf8'))
@@ -38,7 +39,7 @@ function serveAssets (router, options = {}) {
   }
 
   const decorateRequest = injectStats(stats)
-  const serve = serveStatic(outputPath)
+  const serveStatic = createServeStatic(outputPath)
 
   if (hideSourceMaps) {
     router.use(publicPath, (req, res, next) => {
@@ -56,7 +57,7 @@ function serveAssets (router, options = {}) {
     })
   }
 
-  router.use(publicPath, serve)
+  router.use(publicPath, serveStatic)
   router.use(decorateRequest)
 }
 
