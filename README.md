@@ -651,3 +651,7 @@ watching.close(() => console.log('Stop watching'))
 * [webpack/lib/Compiler](https://github.com/enten/udk/blob/0d5d7da79b4146c1508302b2f6d0e01f0aedb5f2/lib/Compiler.js#L133)
 * [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js)
 * [webpack/lib/Watching](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js#L17)
+
+## License
+
+[MIT](./LICENSE)
