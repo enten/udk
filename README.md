@@ -2,11 +2,14 @@
 
 > Webpack extension which improves universal application development.
 
+## Features
+
+
 * Starts universal application development fastly (from scratch/without boilerplate)
 * Designed on webpack's standard API
 * Enhances compilers dependencies: sequential compilation according to dependency graph
-* Enhances CLI watching: restarts watching process when webpack config changes
-* [Dev container](#dev-container) to inject client's stats into server's requests, to serve client's assets and to enable [HMR](https://webpack.js.org/concepts/hot-module-replacement/) on webpack, client and server layers
+* Enhances CLI watching: restarts watching process when webpack config changed
+* **[Dev container](#dev-container) to increase developer productivity**: don't write specific code for development purposes anymore
 
 ## Install
 
@@ -29,7 +32,7 @@ const client = {
 
 const server = {
   name: 'server',
-  dependencies: ['client'],
+  dependencies: [client.name],
   entry: './client.js',
   output: {
     path: __dirname + '/build/client',
@@ -95,12 +98,28 @@ Run a [dev container](#dev-container) with a configuration file given in first p
 *If no `container config path` was given, the CLI will try to resolve `udk.container.js`, `udk.config.js` or `udkfile.js` in the current working directory.*
 
 ```
-$ udkc [container config path]
+$ udkc [udk.container.js]
 ```
 
 ## Dev Container
 
-A dev container is forked in a child process and performs some operations to increase developer productivity when he deals with universal application (using webpack to create two bundles at once: web and [node server](https://nodejs.org/api/http.html#http_class_http_server) bundles).
+### About
+
+A dev container is **forked in a child process and performs some operations to increase developer productivity** when he deals with universal application.
+
+In our context, we can define *universal application* as an application compiled from multiple configurations which have dependencies between them.
+
+Developing an universal application requires to write specific code for development purposes only. It's often a source of pain to write and maintain that kind of scattered fixtures which pollutes the code. It's also a real challenge to find the right combination of tools and configurations to set up an optimized development environment.
+
+Let the dev container do that work for you.
+
+* Restarts the container when webpack configurations or other metafiles changed.
+* Enables [HMR](https://webpack.js.org/concepts/hot-module-replacement/) for `web` and `node` bundles.
+* Runs each `node` bundle and restarts it when a compilation is done.
+* Decorates the request listener if a `node` bundle exports an [http server](https://nodejs.org/api/http.html#http_class_http_server)
+  * Mounts [webpack-hot-middleware](https://github.com/glenjamin/webpack-hot-middleware) if [HMR](https://webpack.js.org/concepts/hot-module-replacement/) is enabled ;
+  * Serves the assets of `web` bundles ;
+  * Injects the stats of `web` bundles.
 
 ### Motivation
 
@@ -110,7 +129,7 @@ A dev container is forked in a child process and performs some operations to inc
 > ...  
 > I hope that `udk` can help developers simplify their toolchain.
 
-[@enten](https://github.com/enten) (2017-10-22)
+[@enten](https://github.com/enten) to [@ctrl](https://github.com/ctrlplusb) – Oct 22, 2017
 
 ### How it works
 
@@ -118,22 +137,22 @@ A dev container is forked in a child process and performs some operations to inc
 * That container configuration **can be empty or specify some options** to change or override the container behavior.
 * If the option `hmr` is enabled (default behavior), *node* and *web* configurations are updated to inject entries and plugins needed for [HMR](https://webpack.js.org/concepts/hot-module-replacement/).
   * All configs: add plugins [`NoEmitOnErrorsPlugin`](https://webpack.js.org/plugins/no-emit-on-errors-plugin/) and [`HotModuleReplacementPlugin`](https://webpack.js.org/plugins/hot-module-replacement-plugin/)
-  * Node configs: prepend entry [`webpack/hot/poll.js`](https://github.com/webpack/webpack/blob/master/hot/poll.js)
-  * Web configs: prepend entry [`webpack-hot-middleware/client.js`](https://github.com/glenjamin/webpack-hot-middleware/blob/master/client.js)
-* The container instantiates a compiler (based on webpack config file found along the container config file) and calls the [`watch`](https://webpack.js.org/api/node/#watching) method.
-* When a compilation is done the container requires node bundles (configurations which has `node` as target).
-* Node bundles can be restarted at each compilation with the container option `autoRestart`.
-* If a node bundle exports an [http server instance](https://nodejs.org/api/http.html#http_class_http_server), the container tries to decorate the request listener.
-  * It serves client's assets according to its stats under the webpack config options [`output.publicPath`](https://webpack.js.org/configuration/output/#output-publicpath) (or "/" by default).
+  * *Node* configs: prepend entry [`webpack/hot/poll.js`](https://github.com/webpack/webpack/blob/master/hot/poll.js)
+  * *Web* configs: prepend entry [`webpack-hot-middleware/client.js`](https://github.com/glenjamin/webpack-hot-middleware/blob/master/client.js)
+* The container instantiates a compiler (based on webpack config file found along the container config file) and calls [`watch`](https://webpack.js.org/api/node/#watching).to starts watching.
+* When a compilation is done the container requires *node* bundles (configurations which has `node` as target).
+* *Node* bundles can be restarted at each compilation with the container option `autoRestart`.
+* If a *node* bundle exports an [http server instance](https://nodejs.org/api/http.html#http_class_http_server), the container tries to decorate the request listener.
   * It uses [webpack-hot-middleware](https://github.com/glenjamin/webpack-hot-middleware) if option `hmr` is enabled.
-  * It injects the client stats (in JSON format) in each request under `res.locals.webpackStats`.
+  * It serves assets of *web* bundles according to their stats under the webpack config options [`output.publicPath`](https://webpack.js.org/configuration/output/#output-publicpath) (or `/` by default).
+  * It injects stats of *web* bundles (in JSON format) in each request under `res.locals.webpackStats`.
 * The container will be restarted when a metafile has changed (container config, webpack config and each metafiles specify in the container config option `metafiles`).
 
 ### Usage example
 
-*If you don't need to override default options and functions of the dev container, you can leave container configuration file empty.*
+*If you don't need to override default options, you can leave container configuration file empty.*
 
-*Note: the functions below are a simplified version of real ones*
+*Note: the functions below are a simplified version of default ones.*
 
 ```shell
 $ ./node_modules/.bin/udkc ./udk.container.js
@@ -169,7 +188,7 @@ module.exports = {
   statsToJsonOptions: {},
   statsToStringOptions: {},
   topModuleEntries: [
-    /^source-map-support\/r/
+    /^source-map-support/
   ],
   watchOptions: {
     aggregateTimeout: 200
@@ -568,13 +587,13 @@ watching.close(() => console.log('Stop watching'))
 
 ### Files
 
-* [webpack/bin/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/bin/webpack.js) `->` [udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)
-* [webpack/lib/Compiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js) `->` [udk/lib/Compiler.js](https://github.com/enten/udk/blob/master/lib/Compiler.js)
-* [webpack/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js) `->` [udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)
+* [webpack/bin/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/bin/webpack.js) `->` **[udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)**
+* [webpack/lib/Compiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js) `->` **[udk/lib/Compiler.js](https://github.com/enten/udk/blob/master/lib/Compiler.js)**
+* [webpack/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js) `->` **[udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)**
 * [webpack/lib/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/webpack.js) `->` [udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)
-* `+` [udk/bin/udkc.js](https://github.com/enten/udk/blob/master/bin/udkc.js)
-* `+` [udk/lib/devContainer.js](https://github.com/enten/udk/blob/master/lib/devContainer.js)
-* `+` [udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)
+* `+` **[udk/bin/udkc.js](https://github.com/enten/udk/blob/master/bin/udkc.js)**
+* `+` **[udk/lib/devContainer.js](https://github.com/enten/udk/blob/master/lib/devContainer.js)**
+* `+` **[udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)**
 * `+` [udk/lib/util/Watchpack2.js](https://github.com/enten/udk/blob/master/lib/util/Watchpack2.js)
 * `+` [udk/lib/util/WatchpackFork.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackFork.js)
 * `+` [udk/lib/util/bindExitHandler.js](https://github.com/enten/udk/blob/master/lib/util/bindExitHandler.js)
@@ -624,10 +643,10 @@ watching.close(() => console.log('Stop watching'))
 ```
 
 * [tapable/lib/Tapable](https://github.com/webpack/tapable/blob/df6f2aff44ea06a00000a3a34db2174582597457/lib/Tapable.js)
-* [udk/lib/Compiler](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/Compiler.js#L133)
-* [udk/lib/Compiler.Watching](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/Compiler.js#L44)
-* [udk/lib/MultiCompiler](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/MultiCompiler.js)
-* [udk/lib/devContainer](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/devContainer.js#L31)
+* **[udk/lib/Compiler](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/Compiler.js#L133)**
+* **[udk/lib/Compiler.Watching](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/Compiler.js#L44)**
+* **[udk/lib/MultiCompiler](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/MultiCompiler.js)**
+* **[udk/lib/devContainer](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/devContainer.js#L31)**
 * [udk/lib/util/container](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/util/container.js)
 * [webpack/lib/Compiler](https://github.com/enten/udk/blob/0d5d7da79b4146c1508302b2f6d0e01f0aedb5f2/lib/Compiler.js#L133)
 * [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js)
