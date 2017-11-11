@@ -182,11 +182,15 @@ module.exports = {
     'package.json',
   ],
   processTitle: 'udk-ctnr',
-  statsOptions: {
+  stats: {
+
+  },
+  statsToJson: {
     source: false
   },
-  statsToJsonOptions: {},
-  statsToStringOptions: {},
+  statsToString: {
+    colors: require('supports-color)
+  },
   topModuleEntries: [
     /^source-map-support/
   ],
@@ -245,10 +249,10 @@ module.exports = {
     this.logger.info(this.stringifyCompilerStats(stats))
   },
   jsonifyCompilerStats (stats) {
-    return stats.toJson(Object.assign({}, this.statsOptions, this.statsToJsonOptions))
+    return stats.toJson(this.statsToJson)
   },
   stringifyCompilerStats (stats) {
-    return stats.toString(Object.assign({}, this.statsOptions, this.statsToStringOptions))
+    return stats.toString(this.statsToString)
   }
 }
 ```
