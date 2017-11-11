@@ -77,7 +77,7 @@ Now, try to update each file (`webpack.config.js` too) and check the output.
 
 Same as [webpack's CLI](https://webpack.js.org/api/cli/).
 
-*The only difference is that [udk watches on config files and restarts the process if a change occurred](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/bin/udk.js#L269).*
+*The only difference is that [udk watches on config files and restarts the process if a change occurred](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/bin/udk.js#L269).*
 
 ### [Usage with config file](https://webpack.js.org/api/cli/#usage-with-config-file)
 
@@ -588,9 +588,8 @@ watching.close(() => console.log('Stop watching'))
 ### Files
 
 * [webpack/bin/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/bin/webpack.js) `->` **[udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)**
-* [webpack/lib/Compiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js) `->` **[udk/lib/Compiler.js](https://github.com/enten/udk/blob/master/lib/Compiler.js)**
 * [webpack/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js) `->` **[udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)**
-* [webpack/lib/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/webpack.js) `->` [udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)
+* [webpack/lib/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/webpack.js) `->` **[udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)**
 * `+` **[udk/bin/udkc.js](https://github.com/enten/udk/blob/master/bin/udkc.js)**
 * `+` **[udk/lib/devContainer.js](https://github.com/enten/udk/blob/master/lib/devContainer.js)**
 * `+` **[udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)**
@@ -608,46 +607,38 @@ watching.close(() => console.log('Stop watching'))
 * `+` [udk/lib/util/moduleExists.js](https://github.com/enten/udk/blob/master/lib/util/moduleExists.js)
 * `+` [udk/lib/util/requireDefault.js](https://github.com/enten/udk/blob/master/lib/util/requireDefault.js)
 * `+` [udk/lib/util/resolveWith.js](https://github.com/enten/udk/blob/master/lib/util/resolveWith.js)
-* `+` [udk/lib/util/runSeries.js](https://github.com/enten/udk/blob/master/lib/util/runSeries.js)
 
 ### Class diagram
 
 ```
-.. tapable ................
-: +---------------------+ :
-: |       Tapable       |<-------------+
-: +---------------------+ :            |
-:............^............:            |
-             ‖                         |
-.. webpack ..‖.........................|...................................
-: +---------------------+   +-------------------+   +-------------------+ :
-: |    MultiCompiler    |-->|     Compiler      |-->|     Watching      | :
-: +---------------------+   +-------------------+   +-------------------+ :
-:............^........................^.......................^...........:
-             ‖                        |                       |
-.. udk ......‖........................|.......................|............
-: +---------------------+   +-------------------+   +-------------------+ :
-: |    MultiCompiler    |-->|     Compiler      |-->|     Watching      | :
-: +---------------------+   +-------------------+   +-------------------+ :
-:            ^                                                            :
-:            ‖                                                            :
-: +---------------------+   +-------------------+                         :
-: |    DevContainer     |==>|     Container     |                         :
-: +---------------------+   +-------------------+                         :
-:.........................................................................:
+┌┄ tapable ┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+┆ ┌───────────────────┐ ┆
+┆ |      Tapable      |<════════════╗
+┆ └─────────Λ─────────┘ ┆           ║
+└┄┄┄┄┄┄┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┘           ║
+            ║                       ║
+┌┄ webpack ┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+┆ ┌─────────╨─────────┐   ┌─────────╨─────────┐   ┌───────────────────┐ ┆
+┆ |   MultiCompiler   ├──>|     Compiler      ├──>|     Watching      | ┆
+┆ └─────────Λ─────────┘   └─────────Λ─────────┘   └───────────────────┘ ┆
+└┄┄┄┄┄┄┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
+            ║                       │
+┌┄ udk ┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+┆ ┌─────────╨─────────┐   ┌─────────┴─────────┐   ┌───────────────────┐ ┆
+┆ |   MultiCompiler   |<──┤   DevContainer    ╞══>|     Container     | ┆
+┆ └───────────────────┘   └───────────────────┘   └───────────────────┘ ┆
+└┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
 
-:..: package
-+--+ module
-===> extend relation
----> 0..n relation
+┄┄┄┄ package
+──── module
+═══> extend relation
+───> 0..n relation
 ```
 
 * [tapable/lib/Tapable](https://github.com/webpack/tapable/blob/df6f2aff44ea06a00000a3a34db2174582597457/lib/Tapable.js)
-* **[udk/lib/Compiler](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/Compiler.js#L133)**
-* **[udk/lib/Compiler.Watching](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/Compiler.js#L44)**
-* **[udk/lib/MultiCompiler](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/MultiCompiler.js)**
-* **[udk/lib/devContainer](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/devContainer.js#L31)**
-* [udk/lib/util/container](https://github.com/enten/udk/blob/64a0e0f088ae47cae8bc50443ff655a8504e363d/lib/util/container.js)
+* **[udk/lib/MultiCompiler](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/lib/MultiCompiler.js)**
+* **[udk/lib/devContainer](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/lib/devContainer.js#L31)**
+* **[udk/lib/util/container](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/lib/util/container.js)**
 * [webpack/lib/Compiler](https://github.com/enten/udk/blob/0d5d7da79b4146c1508302b2f6d0e01f0aedb5f2/lib/Compiler.js#L133)
 * [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js)
 * [webpack/lib/Watching](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js#L17)
