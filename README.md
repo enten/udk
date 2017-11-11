@@ -189,7 +189,7 @@ module.exports = {
     source: false
   },
   statsToString: {
-    colors: require('supports-color)
+    colors: require('supports-color')
   },
   topModuleEntries: [
     /^source-map-support/
