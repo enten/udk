@@ -4,7 +4,6 @@
 
 ## Features
 
-
 * Starts universal application development fastly (from scratch/without boilerplate)
 * Designed on webpack's standard API
 * Enhances compilers dependencies: sequential compilation according to dependency graph
@@ -178,6 +177,9 @@ module.exports = {
     }
   },
   logger: console,
+  metadirs: [
+
+  ],
   metafiles: [
     'package.json',
   ],
