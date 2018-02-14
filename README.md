@@ -168,6 +168,10 @@ module.exports = {
   bundleAvailableEvent: 'bundle-available',
   context: __dirname,
   hmr: {
+    configs: undefined, // restrict HMR to configs which has its name in that option
+    entries: ['main', 'index'], // restrict HMR to entries which has its name in that option
+    entriesNode: ['server'], // concatenated with hmr.entries => ['server', 'main', 'index']
+    entriesWeb: ['browser'], // concatenated with hmr.entries => ['server', 'main', 'index']
     hotPollInterval: 1000,
     hotMiddleware: {
       path: '/__webpack_hmr'
