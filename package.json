@@ -1,6 +1,6 @@
 {
   "name": "udk",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Universal Development Kit",
   "main": "lib/udk.js",
   "bin": {
