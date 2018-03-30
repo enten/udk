@@ -1,0 +1,1 @@
+module.exports = require('webpack/bin/config-optimist')

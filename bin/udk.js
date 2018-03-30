@@ -197,11 +197,16 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 		var firstOptions = [].concat(options)[0];
 		var statsPresetToOptions = require("../lib/Stats.js").presetToOptions;
 
+		// Extrem HMR >
 		if(!process.send && (firstOptions.watch || options.watch)) {
 			var fs = require("fs");
 			var interpret = require("interpret");
 
 			// webpack/bin/convert-argv.js #24 >
+			//
+			// commit 5227452aae0c05f57eb534637addb01ba6707449 on Sep 20, 2017 by @Aladdin
+			// ADD Aladdin-ADD Fix: incorrect comparing to undefined.
+			//
 			var configFileLoaded = false;
 			var configFiles = [];
 			var extensions = Object.keys(interpret.extensions).sort(function(a, b) {
@@ -280,6 +285,7 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 				return;
 			}
 		}
+		// < Extrem HMR
 
 		var outputOptions = options.stats;
 		if(typeof outputOptions === "boolean" || typeof outputOptions === "string") {
@@ -298,6 +304,12 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 		}
 		if(typeof outputOptions.context === "undefined")
 			outputOptions.context = firstOptions.context;
+
+		ifArg("env", function(value) {
+			if(outputOptions.env) {
+				outputOptions._env = value;
+			}
+		});
 
 		ifArg("json", function(bool) {
 			if(bool)
@@ -415,16 +427,19 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 		var compiler;
 		try {
 			compiler = webpack(options);
-		} catch(e) {
-			var WebpackOptionsValidationError = require("../lib/WebpackOptionsValidationError");
-			if(e instanceof WebpackOptionsValidationError) {
+		} catch(err) {
+			if(err.name === "WebpackOptionsValidationError") {
 				if(argv.color)
-					console.error("\u001b[1m\u001b[31m" + e.message + "\u001b[39m\u001b[22m");
+					console.error(
+						`\u001b[1m\u001b[31m${err.message}\u001b[39m\u001b[22m`
+					);
 				else
-					console.error(e.message);
-				process.exit(1); // eslint-disable-line no-process-exit
+					console.error(err.message);
+				// eslint-disable-next-line no-process-exit
+				process.exit(1);
 			}
-			throw e;
+
+			throw err;
 		}
 
 		if(argv.progress) {
@@ -443,7 +458,8 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 				lastHash = null;
 				console.error(err.stack || err);
 				if(err.details) console.error(err.details);
-				process.exit(1); // eslint-disable-line
+				process.exitCode = 1;
+				return;
 			}
 			if(outputOptions.json) {
 				process.stdout.write(JSON.stringify(stats.toJson(outputOptions), null, 2) + "\n");
