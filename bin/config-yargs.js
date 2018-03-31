@@ -1,1 +1,0 @@
-module.exports = require('webpack/bin/config-yargs')

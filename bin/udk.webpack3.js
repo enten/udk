@@ -21,7 +21,7 @@ var yargs = require("yargs")
 		"Usage without config file: udk <entry> [<entry>] <output>\n" +
 		"Usage with config file: udk");
 
-require("./config-yargs")(yargs);
+require("webpack/bin/config-yargs")(yargs);
 
 yargs.version(VERSION);
 
@@ -172,7 +172,7 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 		argv["display"] = "verbose";
 	}
 
-	var options = require("./convert-argv")(yargs, argv);
+	var options = require("webpack/bin/convert-argv")(yargs, argv);
 
 	function ifArg(name, fn, init) {
 		if(Array.isArray(argv[name])) {
@@ -195,7 +195,7 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 		}
 
 		var firstOptions = [].concat(options)[0];
-		var statsPresetToOptions = require("../lib/Stats.js").presetToOptions;
+		var statsPresetToOptions = require("webpack/lib/Stats.js").presetToOptions;
 
 		// Extrem HMR >
 		if(!process.send && (firstOptions.watch || options.watch)) {
@@ -443,7 +443,7 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 		}
 
 		if(argv.progress) {
-			var ProgressPlugin = require("../lib/ProgressPlugin");
+			var ProgressPlugin = require("webpack/lib/ProgressPlugin");
 			compiler.apply(new ProgressPlugin({
 				profile: argv.profile
 			}));
