@@ -659,13 +659,13 @@ watching.close(() => console.log('Stop watching'))
 ───> 0..n relation
 ```
 
-* [tapable/lib/Tapable](https://github.com/webpack/tapable/blob/df6f2aff44ea06a00000a3a34db2174582597457/lib/Tapable.js)
-* **[udk/lib/MultiCompiler](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/lib/MultiCompiler.js)**
-* **[udk/lib/devContainer](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/lib/devContainer.js#L31)**
-* **[udk/lib/util/container](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/lib/util/container.js)**
-* [webpack/lib/Compiler](https://github.com/enten/udk/blob/0d5d7da79b4146c1508302b2f6d0e01f0aedb5f2/lib/Compiler.js#L133)
-* [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js)
-* [webpack/lib/Watching](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/Compiler.js#L17)
+* [tapable/lib/Tapable](https://github.com/webpack/tapable/blob/v1.0.0/lib/Tapable.js)
+* **[udk/lib/MultiCompiler](https://github.com/enten/udk/blob/v0.3.0/lib/MultiCompiler.js)**
+* **[udk/lib/devContainer](https://github.com/enten/udk/blob/v0.3.0/lib/devContainer.js)**
+* **[udk/lib/util/container](https://github.com/enten/udk/blob/v0.3.0/lib/util/container.js)**
+* [webpack/lib/Compiler](https://github.com/webpack/webpack/blob/v4.4.1/lib/Compiler.js)
+* [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/v4.4.1/lib/MultiCompiler.js)
+* [webpack/lib/Watching](https://github.com/webpack/webpack/blob/v4.4.1/lib/Watching.js)
 
 ## License
 
