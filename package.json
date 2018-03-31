@@ -29,13 +29,14 @@
     "webpack": "^3.0.0"
   },
   "dependencies": {
-    "debug": "^3.0.0",
-    "dependency-graph": "^0.5.0",
+    "debug": "^3.1.0",
+    "dependency-graph": "^0.7.0",
     "killer": "^0.1.0",
-    "serve-static": "^1.13.1",
-    "webpack-hot-middleware": "^2.20.0"
+    "serve-static": "^1.13.2",
+    "webpack-hot-middleware": "^2.21.2"
   },
   "devDependencies": {
-    "webpack": "^3.11.0"
+    "webpack": "^4.4.1",
+    "webpack-cli": "^2.0.13"
   }
 }
