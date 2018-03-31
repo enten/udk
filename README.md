@@ -2,6 +2,11 @@
 
 > Webpack extension which improves universal application development.
 
+[![NPM Version](https://img.shields.io/npm/v/udk.svg)](https://npmjs.com/package/udk)
+[![NPM Dependencies](https://img.shields.io/david/enten/udk.svg)](https://david-dm.org/enten/udk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Made with Koding](https://koding-cdn.s3.amazonaws.com/badges/made-with-koding/v1/koding_badge_ReadmeLight.png)](https://koding.com/)
+
 ## Features
 
 * Starts universal application development fastly (from scratch/without boilerplate)
