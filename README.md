@@ -5,7 +5,7 @@
 ## Features
 
 * Starts universal application development fastly (from scratch/without boilerplate)
-* Designed on webpack's standard API
+* Designed on webpack's standard API [v3](https://github.com/webpack/webpack/tree/v3.11.0) and **[v4](https://github.com/webpack/webpack/tree/v4.4.1)**<sup>new</sup>
 * Enhances compilers dependencies: sequential compilation according to dependency graph
 * Enhances CLI watching: restarts watching process when webpack config changed
 * **[Dev container](#dev-container) to increase developer productivity**: don't write specific code for development purposes anymore
@@ -13,7 +13,7 @@
 ## Install
 
 ```shell
-npm install --save-dev udk webpack
+npm install --save-dev udk webpack webpack-cli
 ```
 
 ## The Gist
@@ -65,7 +65,7 @@ console.log('Hello, shared')
 ```
 
 ```shell
-DEBUG=udk:* ./node_modules/.bin/udk.js --config webpack.config.js --watch
+DEBUG=udk:* npx udk --config webpack.config.js --watch
 ```
 
 Now, try to update each file (`webpack.config.js` too) and check the output.
@@ -595,17 +595,30 @@ watching.close(() => console.log('Stop watching'))
 
 ## Implementation
 
+### Compatibility
+
+| udk | webpack3 | webpack4 |
+|-----|----------|----------|
+| [v0.3.0](https://github.com/enten/udk/tree/v0.3.0) | [v3.11.0](https://github.com/webpack/webpack/tree/v3.11.0) | [v4.4.1](https://github.com/webpack/webpack/tree/v4.4.1) |
+| [v0.2.4](https://github.com/enten/udk/tree/v0.2.4) | [v3.5.5](https://github.com/webpack/webpack/tree/v3.5.5) | - |
+
 ### Files
 
-* [webpack/bin/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/bin/webpack.js) `->` **[udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)**
-* [webpack/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/MultiCompiler.js) `->` **[udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)**
-* [webpack/lib/webpack.js](https://github.com/webpack/webpack/blob/f6285d22171f962cd0abd9bd51b1ab449d704d26/lib/webpack.js) `->` **[udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)**
+* webpack/bin/webpack.js `->` **[udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)**
+    * [webpack@3.11.0/bin/webpack.js](https://github.com/webpack/webpack/blob/v3.11.0/bin/webpack.js) `-->` **[udk/bin/udk.webpack3.js](https://github.com/enten/udk/blob/master/bin/udk.webpack3.js)**
+    * [webpack@4.4.1/bin/webpack.js](https://github.com/webpack/webpack/blob/v4.4.1/bin/webpack.js) `-->` **[udk/bin/udk.webpack4.js](https://github.com/enten/udk/blob/master/bin/udk.webpack4.js)**
+    * [webpack-cli@2.0.11/bin/webpack.js](https://github.com/webpack/webpack-cli/blob/v2.0.11/bin/webpack.js) `-->` **[udk/bin/udk.webpack4-cli.js](https://github.com/enten/udk/blob/master/bin/udk.webpack4-cli.js)**
+* [webpack@4.4.1/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/v4.4.1/lib/MultiCompiler.js) `->` **[udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)**
+* webpack/lib/webpack.js `->` **[udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)**
+    * [webpack@3.11.0/lib/webpack.js](https://github.com/webpack/webpack/blob/v3.11.0/lib/webpack.js) `-->` **[udk/bin/webpack.v3.js](https://github.com/enten/udk/blob/master/lib/webpack.v3.js)**
+    * [webpack@4.4.1/lib/webpack.js](https://github.com/webpack/webpack/blob/v4.4.1/lib/webpack.js) `-->` **[udk/bin/webpack.v4.js](https://github.com/enten/udk/blob/master/lib/webpack.v4.js)**
 * `+` **[udk/bin/udkc.js](https://github.com/enten/udk/blob/master/bin/udkc.js)**
 * `+` **[udk/lib/devContainer.js](https://github.com/enten/udk/blob/master/lib/devContainer.js)**
 * `+` **[udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)**
 * `+` [udk/lib/util/Watchpack2.js](https://github.com/enten/udk/blob/master/lib/util/Watchpack2.js)
 * `+` [udk/lib/util/WatchpackFork.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackFork.js)
 * `+` [udk/lib/util/bindExitHandler.js](https://github.com/enten/udk/blob/master/lib/util/bindExitHandler.js)
+* `+` [udk/lib/util/compatPlugin.js](https://github.com/enten/udk/blob/master/lib/util/compatPlugin.js)
 * `+` [udk/lib/util/container.js](https://github.com/enten/udk/blob/master/lib/util/container.js)
 * `+` [udk/lib/util/debug.js](https://github.com/enten/udk/blob/master/lib/util/debug.js)
 * `+` [udk/lib/util/decorateEventListener.js](https://github.com/enten/udk/blob/master/lib/util/decorateEventListener.js)
@@ -614,6 +627,7 @@ watching.close(() => console.log('Stop watching'))
 * `+` [udk/lib/util/findForTarget.js](https://github.com/enten/udk/blob/master/lib/util/findForTarget.js)
 * `+` [udk/lib/util/getEntryOutputPathFromStats.js](https://github.com/enten/udk/blob/master/lib/util/getEntryOutputPathFromStats.js)
 * `+` [udk/lib/util/getOutputPublicPath.js](https://github.com/enten/udk/blob/master/lib/util/getOutputPublicPath.js)
+* `+` [udk/lib/util/isCompilerV4.js](https://github.com/enten/udk/blob/master/lib/util/isCompilerV4.js)
 * `+` [udk/lib/util/moduleExists.js](https://github.com/enten/udk/blob/master/lib/util/moduleExists.js)
 * `+` [udk/lib/util/requireDefault.js](https://github.com/enten/udk/blob/master/lib/util/requireDefault.js)
 * `+` [udk/lib/util/resolveWith.js](https://github.com/enten/udk/blob/master/lib/util/resolveWith.js)
