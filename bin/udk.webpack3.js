@@ -202,12 +202,11 @@ yargs.parse(process.argv.slice(2), (err, argv, output) => {
 			var fs = require("fs");
 			var interpret = require("interpret");
 
-			// webpack/bin/convert-argv.js #24 >
+			// webpack/bin/convert-argv.js #25 >
 			//
 			// commit 5227452aae0c05f57eb534637addb01ba6707449 on Sep 20, 2017 by @Aladdin
 			// ADD Aladdin-ADD Fix: incorrect comparing to undefined.
 			//
-			var configFileLoaded = false;
 			var configFiles = [];
 			var extensions = Object.keys(interpret.extensions).sort(function(a, b) {
 				return a === ".js" ? -1 : b === ".js" ? 1 : a.length - b.length;

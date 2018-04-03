@@ -299,12 +299,11 @@ For more information, see https://webpack.js.org/api/cli/.`);
         var interpret = require("interpret");
         var path = require("path");
   
-        // webpack-cli/bin/convert-argv.js #44 >
+        // webpack-cli/bin/convert-argv.js #45 >
         //
         // commit 9026556fca2698abfd44b4eb27a85da7a0de310c on Mar 23, 2018 by @bitpshr
         // feat: --entry should override config.entry (#155) (#358)
         //
-        let configFileLoaded = false;
         let configFiles = [];
         const extensions = Object.keys(interpret.extensions).sort(function(a, b) {
           return a === ".js" ? -1 : b === ".js" ? 1 : a.length - b.length;
