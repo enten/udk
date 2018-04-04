@@ -9,4 +9,8 @@ try {
 
 const devContainer = require('../lib/devContainer')
 
-devContainer.apply(null, process.argv.slice(2)).run()
+if (process.env.UDKC) {
+	devContainer(process.env.UDKC).run()
+} else {
+	devContainer().run()
+}
