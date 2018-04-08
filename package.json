@@ -7,6 +7,7 @@
     "udk": "./bin/udk.js",
     "udkc": "./bin/udkc.js"
   },
+  "builders": "angular/builders.json",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

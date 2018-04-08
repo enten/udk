@@ -1,0 +1,10 @@
+{
+  "$schema": "@angular-devkit/architect/src/builders-schema.json",
+  "builders": {
+    "udk-builder": {
+      "class": "./lib/udk-builder",
+      "schema": "./lib/udk-builder.schema.json",
+      "description": "Build an universal angular application with udk."
+    }
+  }
+}

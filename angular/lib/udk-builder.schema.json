@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "id": "UdkBuilderSchema",
+  "title": "Udk Builder Schema",
+  "properties": {
+    "main": {
+      "type": "string",
+      "description": "The name of the main entry-point file."
+    },
+    "browserTarget": {
+      "type": "string",
+      "description": "Target to browser."
+    },
+    "serverTarget": {
+      "type": "string",
+      "description": "Target for server."
+    },
+    "partialBrowserConfig": {
+      "type": "string",
+      "description": "Partial webpack config for browser."
+    },
+    "partialServerConfig": {
+      "type": "string",
+      "description": "Partial webpack config for server."
+    },
+    "deleteOutputPath": {
+      "type": "boolean",
+      "description": "delete-output-path",
+      "default": true
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "Adds more details to output logging.",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "main",
+    "browserTarget",
+    "serverTarget"
+  ]
+}
