@@ -3,14 +3,14 @@ const { map } = require('rxjs/operators/map');
 
 const Runtime = require('../../lib/devContainer');
 
-const {
-  architect$,
-  prepareBuilder,
-  logger
-} = require('./ng-devkit');
-
 Runtime.extendRuntime(module, {
   async getBuilderContext(project) {
+    const {
+      architect$,
+      prepareBuilder,
+      logger
+    } = require('./ng-devkit');
+
     if (!this._builderContext) {
       this._builderContext = {};
     }
