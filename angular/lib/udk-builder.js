@@ -8,7 +8,7 @@ const {
   statsWarningsToString
 } = require('@angular-devkit/build-angular/src/angular-cli-files/utilities/stats');
 
-const { resolve } = require('@angular-devkit/core');
+const { join, normalize, resolve, virtualFs } = require('@angular-devkit/core');
 
 const rimraf = require('rimraf');
 const webpackMerge = require('webpack-merge');
@@ -62,9 +62,10 @@ class UdkBuilder {
     const {
       main,
       browserTarget,
+      serverTarget,
       partialBrowserConfig,
       partialServerConfig,
-      serverTarget,
+      fileReplacements,
       deleteOutputPath
     } = options;
 
@@ -77,7 +78,8 @@ class UdkBuilder {
       this._getWebpackConfigForBuilder(
         ServerBuilder,
         serverTarget,
-        partialServerConfig
+        partialServerConfig,
+        fileReplacements
       )
     ).pipe(
       map((multiConfig) => {
@@ -169,13 +171,26 @@ class UdkBuilder {
     rimraf.sync(webpackConfig.output.path);
   }
 
-  _getWebpackConfigForBuilder(BuilderCtor, projectTarget, partialWebpackConfig) {
+  _getWebpackConfigForBuilder(BuilderCtor, projectTarget, partialWebpackConfig, fileReplacements) {
     return this._getBuilderConfig(projectTarget).pipe(
       concatMap((builderConfig) => {
         const builder = new BuilderCtor(this.context);
 
         const { root } = this.context.workspace;
         const projectRoot = resolve(root, builderConfig.root);
+
+        if (fileReplacements) {
+          const host = new virtualFs.AliasHost(this.context.host);
+
+          fileReplacements.forEach(({ src, replaceWith }) => {
+            host.aliases.set(
+              join(root, normalize(src)),
+              join(root, normalize(replaceWith)),
+            );
+          });
+
+          this.context.host = host;
+        }
 
         const webpackConfig = builder.buildWebpackConfig(
           root,

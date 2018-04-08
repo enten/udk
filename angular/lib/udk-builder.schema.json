@@ -23,6 +23,22 @@
       "type": "string",
       "description": "Partial webpack config for server."
     },
+    "fileReplacements": {
+      "description": "Replace files with other files in the build.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "replaceWith": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
     "deleteOutputPath": {
       "type": "boolean",
       "description": "delete-output-path",
