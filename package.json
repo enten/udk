@@ -5,7 +5,8 @@
   "main": "lib/udk.js",
   "bin": {
     "udk": "./bin/udk.js",
-    "udkc": "./bin/udkc.js"
+    "udkc": "./bin/udkc.js",
+    "ng-udkc": "./angular/bin/ng-udkc.js"
   },
   "builders": "angular/builders.json",
   "scripts": {
