@@ -1,5 +1,4 @@
-const { concatMap } = require('rxjs/operators/concatMap');
-const { map } = require('rxjs/operators/map');
+const { concatMap, map } = require('rxjs/operators');
 
 const Runtime = require('../../lib/devContainer');
 

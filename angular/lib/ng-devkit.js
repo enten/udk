@@ -5,9 +5,8 @@ const { logging/*, normalize*/, resolve } = require('@angular-devkit/core');
 
 const { WorkspaceLoader } = require('@angular/cli/models/workspace-loader');
 
-const { of } = require('rxjs/observable/of');
-const { concatMap } = require('rxjs/operators/concatMap');
-const { map } = require('rxjs/operators/map');
+const { of: observableOf } = require('rxjs');
+const { concatMap, map } = require('rxjs/operators');
 
 const host = new NodeJsSyncHost();
 const architect$ = loadWorkspaceAndArchitect(host);
@@ -103,7 +102,7 @@ function prepareWebpackConfig({
   targetSpecifier
 }) {
   let builderConfigOptions = builderConfig.options;
-  let builderConfigOptions$ = of(builderConfigOptions);
+  let builderConfigOptions$ = observableOf(builderConfigOptions);
 
   let devServerBuilder;
   let devServerBuilderConfig;

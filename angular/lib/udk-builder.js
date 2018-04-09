@@ -13,12 +13,13 @@ const { join, normalize, resolve, virtualFs } = require('@angular-devkit/core');
 const rimraf = require('rimraf');
 const webpackMerge = require('webpack-merge');
 
-const { Observable } = require('rxjs/Observable');
-const { fromPromise } = require('rxjs/observable/fromPromise');
-const { of } = require('rxjs/observable/of');
-const { concatMap } = require('rxjs/operators/concatMap');
-const { map } = require('rxjs/operators/map');
-const { zip } = require('rxjs/observable/zip');
+const {
+  Observable,
+  from: fromPromise,
+  of: observableOf,
+  zip
+} = require('rxjs');
+const { concatMap, map } = require('rxjs/operators');
 
 const udk = require('../../lib/udk');
 
@@ -116,7 +117,7 @@ class UdkBuilder {
     if (partialWebpackConfig$ && typeof partialWebpackConfig$.then === 'function') {
       partialWebpackConfig$ = fromPromise(partialWebpackConfig$);
     } else if (!partialWebpackConfig$ || typeof partialWebpackConfig$.subscribe !== 'function') {
-      partialWebpackConfig$ = of(partialWebpackConfig$);
+      partialWebpackConfig$ = observableOf(partialWebpackConfig$);
     }
 
     return partialWebpackConfig$.pipe(
@@ -141,7 +142,7 @@ class UdkBuilder {
           webpackConfig = webpackMerge(webpackConfig, partialWebpackConfig);
         }
 
-        return of(webpackConfig);
+        return observableOf(webpackConfig);
       })
     );
   }
