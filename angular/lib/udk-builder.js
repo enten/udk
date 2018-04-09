@@ -11,6 +11,7 @@ const {
 const { join, normalize, resolve, virtualFs } = require('@angular-devkit/core');
 
 const rimraf = require('rimraf');
+const supportsColor = require('supports-color');
 const webpackMerge = require('webpack-merge');
 
 const {
@@ -212,6 +213,7 @@ class UdkBuilder {
     }
 
     const statsConfig = getWebpackStatsConfig(verbose);
+    statsConfig.colors = supportsColor.stdout;
 
     this.context.logger.info('Child ' + stats.compilation.name);
 
