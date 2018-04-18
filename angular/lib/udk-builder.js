@@ -194,11 +194,23 @@ class UdkBuilder {
           this.context.host = host;
         }
 
-        const webpackConfig = builder.buildWebpackConfig(
-          root,
-          projectRoot,
-          builderConfig.options
-        );
+        let webpackConfig;
+
+        if (BuilderCtor === BrowserBuilder) {
+          webpackConfig = builder.buildWebpackConfig(
+            root,
+            projectRoot,
+            this.context.host,
+            builderConfig.options
+          );
+        } else {
+          webpackConfig = builder.buildWebpackConfig(
+            root,
+            projectRoot,
+            builderConfig.options
+          );
+        }
+
 
         return this._applyPartialWebpackConfig(webpackConfig, partialWebpackConfig);
       })
