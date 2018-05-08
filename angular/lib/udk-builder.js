@@ -216,14 +216,23 @@ class UdkBuilder {
     const statsConfig = getWebpackStatsConfig(verbose);
     statsConfig.colors = supportsColor.stdout;
 
-    this.context.logger.info('Child ' + stats.compilation.name);
-
-    const json = stats.toJson(statsConfig);
+    const statsTitle = 'Child: ' + stats.compilation.name + (verbose ? '\n' : '');
 
     if (verbose) {
-      this.context.logger.info(stats.toString(statsConfig));
+      const jsonString = stats.toString(statsConfig)
+        .split('\n')
+        .map(line => '  ' + line)
+        .join('\n');
+
+      this.context.logger.info(statsTitle + jsonString);
     } else {
-      this.context.logger.info(statsToString(json, statsConfig));
+      const json = stats.toJson(statsConfig);
+      const jsonString = statsToString(json, statsConfig)
+        .split('\n')
+        .map(line => '  ' + line)
+        .join('\n');
+
+      this.context.logger.info(statsTitle + jsonString);
       if (stats.hasWarnings()) {
         this.context.logger.warn(statsWarningsToString(json, statsConfig));
       }
