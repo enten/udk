@@ -1,6 +1,7 @@
 
 const { BrowserBuilder } = require('@angular-devkit/build-angular/src/browser');
 const { ServerBuilder } = require('@angular-devkit/build-angular/src/server');
+const { addFileReplacements } = require('@angular-devkit/build-angular/src/utils');
 const { getWebpackStatsConfig } = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils');
 const {
   statsErrorsToString,
@@ -173,34 +174,31 @@ class UdkBuilder {
     rimraf.sync(webpackConfig.output.path);
   }
 
-  _getWebpackConfigForBuilder(BuilderCtor, projectTarget, partialWebpackConfig, fileReplacements) {
+  _getWebpackConfigForBuilder(BuilderCtor, projectTarget, partialWebpackConfig, fileReplacements = []) {
+    const { root } = this.context.workspace;
+    const host = new virtualFs.AliasHost(this.context.host);
+
+    let options;
+    let projectRoot;
+
     return this._getBuilderConfig(projectTarget).pipe(
       concatMap((builderConfig) => {
+        options = builderConfig.options;
+        projectRoot = resolve(root, builderConfig.root);
+
+        return observableOf(null);
+      }),
+      concatMap(() => addFileReplacements(root, host, fileReplacements)),
+      concatMap(() => addFileReplacements(root, host, options.fileReplacements || [])),
+      concatMap(() => {
         const builder = new BuilderCtor(this.context);
-
-        const { root } = this.context.workspace;
-        const projectRoot = resolve(root, builderConfig.root);
-
-        if (fileReplacements) {
-          const host = new virtualFs.AliasHost(this.context.host);
-
-          fileReplacements.forEach(({ src, replaceWith }) => {
-            host.aliases.set(
-              join(root, normalize(src)),
-              join(root, normalize(replaceWith)),
-            );
-          });
-
-          this.context.host = host;
-        }
-
         let webpackConfig;
 
         webpackConfig = builder.buildWebpackConfig(
           root,
           projectRoot,
-          this.context.host,
-          builderConfig.options
+          host,
+          options
         );
 
         return this._applyPartialWebpackConfig(webpackConfig, partialWebpackConfig);
