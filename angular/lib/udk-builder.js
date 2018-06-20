@@ -102,14 +102,6 @@ class UdkBuilder {
         // set browserConfig as serverConfig's dependency
         serverConfig.dependencies = [ browserConfig.name ];
 
-        serverConfig.entry = {
-          ...serverConfig.entry,
-          // move options.serverTarget main into ngmodule entry
-          ngmodule: serverConfig.entry.main,
-          // set options.main as real main entry
-          main: resolve(this.context.workspace.root, main)
-        };
-
         return multiConfig;
       })
     );
