@@ -2,12 +2,18 @@
 const { BrowserBuilder } = require('@angular-devkit/build-angular/src/browser');
 const { ServerBuilder } = require('@angular-devkit/build-angular/src/server');
 const { addFileReplacements } = require('@angular-devkit/build-angular/src/utils');
-const { getWebpackStatsConfig } = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils');
 const {
   statsErrorsToString,
   statsToString,
   statsWarningsToString
 } = require('@angular-devkit/build-angular/src/angular-cli-files/utilities/stats');
+const webpackConfigsUtils = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils');
+
+let { getWebpackStatsConfig } = webpackConfigsUtils;
+
+if (!getWebpackStatsConfig) {
+  getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
+}
 
 const { join, normalize, resolve, virtualFs } = require('@angular-devkit/core');
 
