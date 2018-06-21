@@ -15,7 +15,13 @@ if (!getWebpackStatsConfig) {
   getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
 }
 
-const { join, normalize, resolve, virtualFs } = require('@angular-devkit/core');
+const {
+  getSystemPath,
+  join,
+  normalize,
+  resolve,
+  virtualFs
+} = require('@angular-devkit/core');
 
 const rimraf = require('rimraf');
 const supportsColor = require('supports-color');
@@ -123,10 +129,10 @@ class UdkBuilder {
     return partialWebpackConfig$.pipe(
       concatMap((partialWebpackConfig) => {
         if (typeof partialWebpackConfig === 'string') {
-          const partialWebpackConfigPath = resolve(
+          const partialWebpackConfigPath = getSystemPath(resolve(
             this.context.workspace.root,
             partialWebpackConfig
-          );
+          ));
     
           partialWebpackConfig = require(partialWebpackConfigPath);
         }
