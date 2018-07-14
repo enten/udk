@@ -1,19 +1,13 @@
 
 const { BrowserBuilder } = require('@angular-devkit/build-angular/src/browser');
 const { ServerBuilder } = require('@angular-devkit/build-angular/src/server');
-const { addFileReplacements } = require('@angular-devkit/build-angular/src/utils');
+const buildAngularUtils = require('@angular-devkit/build-angular/src/utils');
 const {
   statsErrorsToString,
   statsToString,
   statsWarningsToString
 } = require('@angular-devkit/build-angular/src/angular-cli-files/utilities/stats');
 const webpackConfigsUtils = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils');
-
-let { getWebpackStatsConfig } = webpackConfigsUtils;
-
-if (!getWebpackStatsConfig) {
-  getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
-}
 
 const {
   getSystemPath,
@@ -33,7 +27,30 @@ const {
   of: observableOf,
   zip
 } = require('rxjs');
-const { concatMap, map } = require('rxjs/operators');
+const { concatMap, map, tap } = require('rxjs/operators');
+
+// support @angular-devkit/build-angular v0.7.0 (e5d68c19)
+let { getWebpackStatsConfig } = webpackConfigsUtils;
+
+if (!getWebpackStatsConfig) {
+  getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
+}
+
+// support @angular-devkit/build-angular v0.7.0-rc.2
+let { addFileReplacements, normalizeFileReplacements } = buildAngularUtils;
+
+function supportFileReplacement(options, root, host, fileReplacements) {
+  // <= v0.7.0-rc.1
+  if (addFileReplacements) {
+    options.fileReplacements = fileReplacements;
+
+    return addFileReplacements(root, host, fileReplacements);
+  }
+
+  return normalizeFileReplacements(fileReplacements, host, root)
+    .pipe(map(fileReplacements => {
+      options.fileReplacements = fileReplacements; }));
+}
 
 const udk = require('../../lib/udk');
 
@@ -84,11 +101,21 @@ class UdkBuilder {
       deleteOutputPath
     } = options;
 
+    if (main) {
+      console.warn('--')
+      console.warn('[udk] WARNING! the udk builder option `main` is temporary disabled');
+      console.warn('[udk] The `serverTarget.main` option is use as the main server entrypoint');
+      console.warn('[udk] Your server entry point probably need a refactoring');
+      console.warn('[udk] Check for boilerplate example: https://github.com/enten/angular-universal');
+      console.warn('--')
+    }
+
     return zip(
       this._getWebpackConfigForBuilder(
         BrowserBuilder,
         browserTarget,
-        partialBrowserConfig
+        partialBrowserConfig,
+        fileReplacements
       ),
       this._getWebpackConfigForBuilder(
         ServerBuilder,
@@ -189,11 +216,15 @@ class UdkBuilder {
       concatMap((builderConfig) => {
         options = builderConfig.options;
         projectRoot = resolve(root, builderConfig.root);
+        // browser or server fileReplacements must be able to be override by udk fileReplacements
+        fileReplacements = [].concat(
+          options.fileReplacements || [],
+          fileReplacements
+        );
 
         return observableOf(null);
       }),
-      concatMap(() => addFileReplacements(root, host, fileReplacements)),
-      concatMap(() => addFileReplacements(root, host, options.fileReplacements || [])),
+      concatMap(() => supportFileReplacement(options, root, host, fileReplacements)),
       concatMap(() => {
         const builder = new BuilderCtor(this.context);
         let webpackConfig;

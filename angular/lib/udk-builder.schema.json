@@ -27,15 +27,7 @@
       "description": "Replace files with other files in the build.",
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "src": {
-            "type": "string"
-          },
-          "replaceWith": {
-            "type": "string"
-          }
-        }
+        "$ref": "#/definitions/fileReplacement"
       },
       "default": []
     },
@@ -52,8 +44,45 @@
   },
   "additionalProperties": false,
   "required": [
-    "main",
     "browserTarget",
     "serverTarget"
-  ]
+  ],
+  "definitions": {
+    "fileReplacement": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "src": {
+              "type": "string"
+            },
+            "replaceWith": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "src",
+            "replaceWith"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "replace": {
+              "type": "string"
+            },
+            "with": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "replace",
+            "with"
+          ]
+        }
+      ]
+    }
+  }
 }

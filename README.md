@@ -601,8 +601,11 @@ watching.close(() => console.log('Stop watching'))
 
 ### Compatibility
 
-| udk | webpack3 | webpack4 |
-|-----|----------|----------|
+| udk | webpack3 | webpack4 | angular-devkit |
+|-----|----------|----------|----------------|
+| v0.3.15 |  |  | v0.7.0-rc.2 |
+| v0.3.14 |  |  | v0.7.0 |
+| v0.3.13 |  |  | v0.6.0 |
 | [v0.3.0](https://github.com/enten/udk/tree/v0.3.0) | [v3.11.0](https://github.com/webpack/webpack/tree/v3.11.0) | [v4.4.1](https://github.com/webpack/webpack/tree/v4.4.1) |
 | [v0.2.4](https://github.com/enten/udk/tree/v0.2.4) | [v3.5.5](https://github.com/webpack/webpack/tree/v3.5.5) | - |
 
