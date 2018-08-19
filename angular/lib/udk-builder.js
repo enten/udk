@@ -36,6 +36,8 @@ if (!getWebpackStatsConfig) {
   getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
 }
 
+const { normalizeAssetPatterns } = buildAngularUtils;
+
 // support @angular-devkit/build-angular v0.7.0-rc.2
 let { addFileReplacements, normalizeFileReplacements } = buildAngularUtils;
 
@@ -211,9 +213,12 @@ class UdkBuilder {
 
     let options;
     let projectRoot;
+    let builderConfig;
 
     return this._getBuilderConfig(projectTarget).pipe(
-      concatMap((builderConfig) => {
+      concatMap((_builderConfig) => {
+        builderConfig = _builderConfig;
+
         options = builderConfig.options;
         projectRoot = resolve(root, builderConfig.root);
         // browser or server fileReplacements must be able to be override by udk fileReplacements
@@ -225,6 +230,15 @@ class UdkBuilder {
         return observableOf(null);
       }),
       concatMap(() => supportFileReplacement(options, root, host, fileReplacements)),
+      concatMap(() => options.assets ? normalizeAssetPatterns(
+        options.assets, host, root, projectRoot, builderConfig.sourceRoot
+      ) : observableOf(null)),
+      // Replace the assets in options with the normalized version.
+      tap(assetPatternObjects => {
+        if (assetPatternObjects) {
+          options.assets = assetPatternObjects;
+        }
+      }),
       concatMap(() => {
         const builder = new BuilderCtor(this.context);
         let webpackConfig;
