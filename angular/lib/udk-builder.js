@@ -62,8 +62,16 @@ class UdkBuilder {
   }
 
   run(builderConfig) {
+    let builderConfigs;
+    let webpackConfigs;
+
     return this.buildWebpackConfig(builderConfig.options).pipe(
-      concatMap((multiConfig) => new Observable((obs) => {
+      concatMap((configs) => new Observable((obs) => {
+        builderConfigs = configs.builderConfigs;
+        webpackConfigs = configs.webpackConfigs;
+
+        const multiConfig = webpackConfigs;
+
         if (builderConfig.options.deleteOutputPath) {
           this._deleteOutputPath(multiConfig);
         };
@@ -88,7 +96,40 @@ class UdkBuilder {
           }
           throw err;
         }
-      }))
+      })),
+      concatMap(buildEvent => {
+        // browser builder
+        const builderConfig = builderConfigs[0];
+        const { options } = builderConfig;
+
+        if (buildEvent.success && !options.watch && options.serviceWorker) {
+          const { root } = this.context.workspace;
+          const projectRoot = resolve(root, builderConfig.root);
+
+          const { augmentAppWithServiceWorker } = require('@angular-devkit/build-angular/src/angular-cli-files/utilities/service-worker');
+
+          return new Observable(obs => {
+            augmentAppWithServiceWorker(
+              this.context.host,
+              root,
+              projectRoot,
+              resolve(root, normalize(options.outputPath)),
+              options.baseHref || '/',
+              options.ngswConfigPath
+            ).then(
+              () => {
+                obs.next({ success: true });
+                obs.complete();
+              },
+              (err) => {
+                obs.error(err);
+              }
+            );
+          });
+        } else {
+          return observableOf(buildEvent);
+        }
+      })
     );
   }
 
@@ -126,24 +167,30 @@ class UdkBuilder {
         fileReplacements
       )
     ).pipe(
-      map((multiConfig) => {
+      map((configs) => {
+        const builderConfigs = configs.map(({ builderConfig }) => builderConfig);
+        const webpackConfigs = configs.map(({ webpackConfig }) => webpackConfig);
+
         const [
           browserConfig,
           serverConfig
-        ] = multiConfig;
+        ] = webpackConfigs;
 
         if (!browserConfig.name) {
           browserConfig.name = 'browser';
         }
 
-        if (!multiConfig[1].name) {
+        if (!webpackConfigs[1].name) {
           serverConfig.name = 'server';
         }
 
         // set browserConfig as serverConfig's dependency
         serverConfig.dependencies = [ browserConfig.name ];
 
-        return multiConfig;
+        return {
+          builderConfigs,
+          webpackConfigs
+        };
       })
     );
   }
@@ -251,7 +298,11 @@ class UdkBuilder {
         );
 
         return this._applyPartialWebpackConfig(webpackConfig, partialWebpackConfig);
-      })
+      }),
+      map(webpackConfig => ({
+        builderConfig,
+        webpackConfig
+      }))
     );
   }
 
