@@ -51,7 +51,9 @@ Runtime.extendRuntime(module, {
       }
 
       this._builderContext[project] = architect$.pipe(
-        concatMap(architect => prepareBuilder(architect, targetSpecifier, partialBuilderContext))
+        concatMap(architect => {
+          return prepareBuilder(architect, targetSpecifier, partialBuilderContext);
+        })
       ).toPromise();
     }
 
@@ -80,13 +82,13 @@ Runtime.extendRuntime(module, {
       builderConfig
     } = await this.getProjectBuilderContext();
 
-    const webpackConfig = await builder.buildWebpackConfig(builderConfig.options).toPromise();
+    const { webpackConfigs } = await builder.buildWebpackConfig(builderConfig.options).toPromise();
 
     if (builderConfig.options.deleteOutputPath) {
-      builder._deleteOutputPath(webpackConfig);
+      builder._deleteOutputPath(webpackConfigs);
     }
 
-    return webpackConfig;
+    return webpackConfigs;
   },
   async shutUpContainer (proc, config) {
     this.angularProject = config.angularProject;
