@@ -603,6 +603,7 @@ watching.close(() => console.log('Stop watching'))
 
 | udk | webpack3 | webpack4 | angular-devkit |
 |-----|----------|----------|----------------|
+| v0.3.17 |  |  | v0.8.0-beta.0 |
 | v0.3.15 |  |  | v0.7.0-rc.2 |
 | v0.3.14 |  |  | v0.7.0 |
 | v0.3.13 |  |  | v0.6.0 |
