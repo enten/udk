@@ -2,43 +2,136 @@
   "name": "udk",
   "version": "0.3.17",
   "description": "Universal Development Kit",
-  "main": "lib/udk.js",
+  "license": "MIT",
+  "author": "Steven Enten <steven@enten.fr>",
+  "keywords": [
+    "udk",
+    "universal",
+    "development",
+    "kit"
+  ],
+  "homepage": "https://github.com/enten/udk",
+  "bugs": {
+    "url": "https://github.com/enten/udk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/udk/code"
+  },
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
   "bin": {
     "udk": "./bin/udk.js",
     "udkc": "./bin/udkc.js",
     "ng-udkc": "./angular/bin/ng-udkc.js"
   },
-  "builders": "angular/builders.json",
+  "builders": "./angular/builders.json",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prebuild": "rimraf ./dist",
+    "build": "tsc --project ./tsconfig.json",
+    "postbuild": "copyfiles -e 'coverage/**/*' -e 'dist/**/*' -e 'docs/**/*' -e 'examples/**/*' -e 'node_modules/**' '**/*.d.ts' '*/**/*.json' '**/*.js' '**/*.md' 'LICENSE' 'package.json' '.npmignore' 'dist'",
+    "devkit:install": "pnpm install --shamefully-flatten",
+    "coverage": "jest --coverage",
+    "lint": "tslint --project ./tslint.json",
+    "node": "ts-node -r tsconfig-paths/register",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/enten/udk.git"
+  "jest": {
+    "collectCoverage": false,
+    "collectCoverageFrom": [
+      "**/*.{ts,tsx}"
+    ],
+    "coveragePathIgnorePatterns": [
+      "^.+\\.d\\.ts$",
+      "<rootDir>/angular/",
+      "<rootDir>/examples/",
+      "<rootDir>/scripts/",
+      "<rootDir>/test/",
+      "<rootDir>/bin/udk.ts",
+      "<rootDir>/bin/udk-webpack4.ts",
+      "<rootDir>/bin/udkc.ts",
+      "<rootDir>/lib/webpack.v3.ts",
+      "<rootDir>/lib/webpack.v4.ts"
+    ],
+    "globals": {
+      "ts-jest": {
+        "skipBabel": false
+      }
+    },
+    "moduleFileExtensions": [
+      "ts",
+      "js",
+      "json",
+      "node"
+    ],
+    "moduleNameMapper": {
+      "^@architect/udk$": "<rootDir>/angular/lib/index",
+      "^@architect/udk/(.*)$": "<rootDir>/angular/$1",
+      "^udk$": "<rootDir>/lib/index",
+      "^udk/(.*)$": "<rootDir>/$1"
+    },
+    "rootDir": ".",
+    "testEnvironment": "node",
+    "testRegex": "(/__tests__/.*|(\\.|/|_)(test|spec))\\.(jsx?|tsx?)$",
+    "testPathIgnorePatterns": [
+      "<rootDir>/coverage/",
+      "<rootDir>/dist/",
+      "<rootDir>/docs/",
+      "<rootDir>/examples/",
+      "<rootDir>/node_modules/"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    }
   },
-  "keywords": [
-    "universal",
-    "development",
-    "kit"
-  ],
-  "author": "Steven Enten <steven@enten.fr>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/enten/udk/issues"
+  "dependencies": {
+    "@webpack-contrib/config-loader": "1.2.1",
+    "debug": "^4.0.0",
+    "dependency-graph": "^0.7.2",
+    "exit-hook": "^2.0.0",
+    "killer": "^0.1.0",
+    "resolve": "^1.8.1",
+    "watchpack": "^1.6.0",
+    "webpack-hot-middleware": "^2.0.0",
+    "webpack-plugin-compat": "^1.0.0",
+    "yargs-parser": "^10.1.0"
   },
-  "homepage": "https://github.com/enten/udk",
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^0.6.0",
+    "@angular/cli": "^6.2.2",
+    "@types/debug": "^0.0.30",
+    "@types/exit-hook": "^1.1.0",
+    "@types/jest": "^23.3.1",
+    "@types/node": "^10.9.2",
+    "@types/resolve": "^0.0.8",
+    "@types/rimraf": "^2.0.2",
+    "@types/watchpack": "^1.1.3",
+    "@types/webpack": "^4.4.11",
+    "@types/webpack-merge": "^4.1.3",
+    "copyfiles": "^2.1.0",
+    "express": "^4.16.3",
+    "jest": "^23.5.0",
+    "rimraf": "^2.6.2",
+    "rxjs": "^6.0.0",
+    "ts-jest": "^23.1.4",
+    "ts-node": "^7.0.0",
+    "tsconfig-paths": "^3.5.0",
+    "tslint": "^5.11.0",
+    "tslint-no-circular-imports": "0.5.2",
+    "tslint-sonarts": "^1.7.0",
+    "typescript": "~2.9.2",
+    "webpack": "4.19.0",
+    "webpack-cli": "^3.1.0",
+    "webpack-command": "^0.4.1",
+    "webpack-merge": "^4.1.3"
+  },
   "peerDependencies": {
     "webpack": "^3.0.0 || ^4.0.0"
   },
-  "dependencies": {
-    "debug": "^3.1.0",
-    "dependency-graph": "^0.7.0",
-    "killer": "^0.1.0",
-    "serve-static": "^1.13.2",
-    "webpack-hot-middleware": "^2.21.2"
-  },
-  "devDependencies": {
-    "webpack": "^4.4.1",
-    "webpack-cli": "^2.0.13"
+  "engines": {
+    "node": "~8.9.4",
+    "pnpm": "~2.13.6",
+    "npm": "~5.10.0"
   }
 }

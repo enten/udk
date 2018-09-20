@@ -5,7 +5,7 @@
   "properties": {
     "main": {
       "type": "string",
-      "description": "The name of the main entry-point file."
+      "description": "TEMPORARY DISABLED. DO NOT USE."
     },
     "browserTarget": {
       "type": "string",
@@ -33,7 +33,7 @@
     },
     "deleteOutputPath": {
       "type": "boolean",
-      "description": "delete-output-path",
+      "description": "Delete the output path before building.",
       "default": true
     },
     "verbose": {

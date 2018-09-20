@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "rootDir": "./",
+    "sourceRoot": "./",
+    "outDir": "./dist",
+    "inlineSources": true, // Inline sources are necessary for our tests to show the proper sources
+    "sourceMap": false,
+    "inlineSourceMap": true,
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "target": "es2016",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noUnusedParameters": false,  // The linter is used for these.
+    "noUnusedLocals": true,  // The linter doesn't support no-unused-variable anymore.
+    "removeComments": false,
+    "strictNullChecks": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": false,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "lib": [
+      "es2017"
+    ],
+    "baseUrl": ".",
+    "types": [
+      "node",
+      "jest"
+    ],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ],
+    "preserveSymlinks": true,
+    "paths": {
+      "@_/*": [ "./*" ],
+      "@architect/udk": [ "./angular/lib/index" ],
+      "@architect/udk/*": [ "./angular/*" ],
+      "killer": [ "./types/killer" ],
+      "udk": [ "./lib/index" ],
+      "udk/*": [ "./*" ],
+      "webpack-plugin-compat": [ "./types/webpack-plugin-compat" ],
+      "yargs-parser": [ "./types/yargs-parser" ],
+    },
+  },
+  "exclude": [
+    "coverage/**/*",
+    "examples/**/*",
+    "dist/**/*",
+    "docs/**/*",
+    "node_modules/**/*",
+  ]
+}

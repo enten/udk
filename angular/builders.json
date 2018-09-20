@@ -1,5 +1,5 @@
 {
-  "$schema": "@angular-devkit/architect/src/builders-schema.json",
+  "$schema": "https://raw.githubusercontent.com/angular/angular-cli/v6.2.2/packages/angular_devkit/architect/src/builders-schema.json",
   "builders": {
     "udk-builder": {
       "class": "./lib/udk-builder",
