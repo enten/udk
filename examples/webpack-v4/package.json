@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "name": "udk-example-webpack-v4",
+  "version": "0.0.0",
+  "scripts": {
+    "prebuild": "rimraf ./dist",
+    "build": "udk",
+    "dev": "udkc",
+    "prestart": "npm run build",
+    "start": "node ./dist/server/main.js"
+  },
+  "devDependencies": {
+    "udk": "^1.0.0-alpha.0",
+    "webpack": "^4.19.1"
+  }
+}

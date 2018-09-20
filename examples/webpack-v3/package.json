@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "name": "udk-example-webpack-v3",
+  "version": "0.0.0",
+  "scripts": {
+    "prebuild": "rimraf ./dist",
+    "build": "udk",
+    "dev": "udkc",
+    "prestart": "npm run build",
+    "start": "node ./dist/server/main.js"
+  },
+  "devDependencies": {
+    "rimraf": "^2.6.2",
+    "udk": "^1.0.0-alpha.0",
+    "webpack": "^3.12.0"
+  }
+}
