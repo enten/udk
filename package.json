@@ -56,14 +56,14 @@
     ],
     "globals": {
       "ts-jest": {
-        "skipBabel": false
+        "babelConfig": true
       }
     },
     "moduleFileExtensions": [
-      "ts",
       "js",
       "json",
-      "node"
+      "node",
+      "ts"
     ],
     "moduleNameMapper": {
       "^@architect/udk$": "<rootDir>/angular/lib/index",

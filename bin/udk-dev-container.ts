@@ -1,14 +1,14 @@
 // Copyright (c) 2018 Steven Enten. All rights reserved. Licensed under the MIT license.
 
-import DevContainer, { ContainerAPI } from '../lib/devContainer';
+import udkc = require('../lib/devContainer');
 
-const udkc: ContainerAPI = DevContainer(process);
+const devContainer: udkc.ContainerAPI = udkc.default(process);
 
 try {
-  udkc.run();
+  devContainer.run();
 } catch (err) {
   console.error(err);
   process.exit(99);
 }
 
-export = udkc;
+export = devContainer;

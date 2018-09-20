@@ -697,5 +697,4 @@ export class DevContainerRuntime extends ContainerRuntime {
   }
 }
 
-const DevContainer = DevContainerRuntime.export(module) as DevContainerFactory;
-export default DevContainer;
+export default DevContainerRuntime.export(module) as DevContainerFactory;
