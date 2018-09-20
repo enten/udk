@@ -1,6 +1,6 @@
 {
   "name": "udk",
-  "version": "0.3.17",
+  "version": "1.0.0-alpha.0",
   "description": "Universal Development Kit",
   "license": "MIT",
   "author": "Steven Enten <steven@enten.fr>",
