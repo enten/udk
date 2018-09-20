@@ -4,83 +4,101 @@
 
 [![NPM Version](https://img.shields.io/npm/v/udk.svg)](https://npmjs.com/package/udk)
 [![NPM Dependencies](https://img.shields.io/david/enten/udk.svg)](https://david-dm.org/enten/udk)
+[![Build Status](https://travis-ci.org/enten/udk.svg?branch=master)](https://travis-ci.org/enten/udk)
+[![Coverage Status](https://coveralls.io/repos/github/enten/udk/badge.svg)](https://coveralls.io/github/enten/udk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
 * Starts universal application development fastly (from scratch/without boilerplate)
-* Designed on webpack's standard API [v3](https://github.com/webpack/webpack/tree/v3.11.0) and **[v4](https://github.com/webpack/webpack/tree/v4.4.1)**<sup>new</sup>
+* Designed on webpack's standard API [v3](https://github.com/webpack/webpack/tree/v3.11.0) and [v4](https://github.com/webpack/webpack/tree/v4.4.1)
 * Enhances compilers dependencies: sequential compilation according to dependency graph
-* Enhances CLI watching: restarts watching process when webpack config changed
+* Support [webpack-cli](https://github.com/webpack/webpack-cli/) and [webpack-command](https://github.com/webpack-contrib/webpack-command/)<sup>new</sup>
 * **[Dev container](#dev-container) to increase developer productivity**: don't write specific code for development purposes anymore
+* [Compatible with Typescript](./examples/typescript/) and [Universal Angular Application](./angular)<sup>new</sup>
 
 ## Install
 
 ```shell
-npm install --save-dev udk webpack webpack-cli
+npm install --save-dev udk webpack
 ```
 
 ## The Gist
 
-```javascript
+```js
 // webpack.config.js
+
+const mode = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+
 const client = {
   name: 'client',
-  entry: './client.js',
+  entry: './src/client.js',
   output: {
-    path: __dirname + '/build/client',
-    filename: '[name].js'
+    path: __dirname + '/dist',
+    filename: 'client.js'
   }
-}
+};
 
 const server = {
   name: 'server',
-  dependencies: [client.name],
-  entry: './client.js',
+  dependencies: [ client.name ], // server depends on client
+  entry: './src/server.js',
   output: {
-    path: __dirname + '/build/client',
-    filename: '[name].js'
+    path: __dirname + '/dist',
+    filename: 'server.js'
   }
-}
+};
 
-module.exports = [
-  client,
-  server
-]
+module.exports = [ client, server ]; // webpack multi config
 ```
 
-```javascript
-// client.js
-require('./shared.js')
+```js
+// src/client.js
 
-console.log('Hello, client')
+import './shared';
+
+console.log('Hello, client');
 ```
 
-```javascript
-// server.js
-require('./shared.js')
+```js
+// src/server.js
 
-console.log('Hello, server')
+import './shared';
+
+console.log('Hello, server');
 ```
 
-```javascript
-// shared.js
-console.log('Hello, shared')
+```js
+// src/shared.js
+
+console.log('Hello, shared');
 ```
 
 ```shell
 DEBUG=udk:* npx udk --config webpack.config.js --watch
 ```
 
-Now, try to update each file (`webpack.config.js` too) and check the output.
+Now, try to update each file and check the output:
 
-## Command Line Interfaces
+1. update `client.js` to check that server compiler will be invalidate when client compiler done ;
+2. update `server.js` to check that sever compiler will be the only one compiler invalided ;
+3. update `shared.js` to check that server compiler will wait client compiler done before compile too ;
+4. update `shared.js` with a syntax error to check that server won't compile because client compiler has error ;
+5. update `shared.js` to fix syntax error and check client and server compilers will run in serie.
+
+Run `webpack --config webpack.config.js --watch` and try the same updates to check the difference between webpack and udk multi compiler behavior.
+
+Under the hood, [udk extends MultiCompiler only](./lib/MultiCompiler.ts) to ensure some behaviors:
+
+* Invalidate compiler dependants when a compiler done ;
+* Interupt compilation if a compiler dependency has stats errors ;
+* Wait compiler dependency done when a shared file are updated.
+
+## Command Line Interface
 
 ### udk.js
 
-Same as [webpack's CLI](https://webpack.js.org/api/cli/).
-
-*The only difference is that [udk watches on config files and restarts the process if a change occurred](https://github.com/enten/udk/blob/1bea885e7079f0e94bceacca1f75607c4e93a8ee/bin/udk.js#L269).*
+Same as [webpack CLI](https://webpack.js.org/api/cli/).
 
 ### [Usage with config file](https://webpack.js.org/api/cli/#usage-with-config-file)
 
@@ -94,586 +112,27 @@ udk [--config webpack.config.js]
 udk <entry> [<entry>] <output>
 ```
 
-### udkc.js
+All webpack CLIs are supported:
 
-Run a [dev container](#dev-container) with a configuration file given in first parameter.
-
-*If no `container config path` was given, the CLI will try to resolve `udk.container.js`, `udk.config.js` or `udkfile.js` in the current working directory.*
-
-```
-$ udkc [udk.container.js]
-```
-
-## Dev Container
-
-### About
-
-A dev container is **forked in a child process and performs some operations to increase developer productivity** when he deals with universal application.
-
-In our context, we can define *universal application* as an application compiled from multiple configurations which have dependencies between them.
-
-Developing an universal application requires to write specific code for development purposes only. It's often a source of pain to write and maintain that kind of scattered fixtures which pollutes the code. It's also a real challenge to find the right combination of tools and configurations to set up an optimized development environment.
-
-Let the dev container do that work for you.
-
-* Restarts the container when webpack configurations or other metafiles changed.
-* Enables [HMR](https://webpack.js.org/concepts/hot-module-replacement/) for `web` and `node` bundles.
-* Runs each `node` bundle and restarts it when a compilation is done.
-* Decorates the request listener if a `node` bundle exports an [http server](https://nodejs.org/api/http.html#http_class_http_server)
-  * Mounts [webpack-hot-middleware](https://github.com/glenjamin/webpack-hot-middleware) if [HMR](https://webpack.js.org/concepts/hot-module-replacement/) is enabled ;
-  * Serves the assets of `web` bundles ;
-  * Injects the stats of `web` bundles.
-
-### Motivation
-
-> These last months I figured that [tension](https://github.com/enten/tension) is a wrong approach of what must be an universal toolchain.  
-> I wrote `udk` to improve how webpack achieves watching compilation based on multi-configuration with dependencies between them.  
-> I also wrote a [dev container](#dev-container) to won't have to write specific code for development purposes: allows hot reloading on webpack, client and server layers and no more issue to handle with the latest client's stats on the server side.  
-> ...  
-> I hope that `udk` can help developers simplify their toolchain.
-
-[@enten](https://github.com/enten) to [@ctrl](https://github.com/ctrlplusb) – Oct 22, 2017
-
-### How it works
-
-* **It need a container configuration file**. Standard configuration names are: `udk.container.js`, `udk.config.js` and `udkfile.js`.
-* That container configuration **can be empty or specify some options** to change or override the container behavior.
-* If the option `hmr` is enabled (default behavior), *node* and *web* configurations are updated to inject entries and plugins needed for [HMR](https://webpack.js.org/concepts/hot-module-replacement/).
-  * All configs: add plugins [`NoEmitOnErrorsPlugin`](https://webpack.js.org/plugins/no-emit-on-errors-plugin/) and [`HotModuleReplacementPlugin`](https://webpack.js.org/plugins/hot-module-replacement-plugin/)
-  * *Node* configs: prepend entry [`webpack/hot/poll.js`](https://github.com/webpack/webpack/blob/master/hot/poll.js)
-  * *Web* configs: prepend entry [`webpack-hot-middleware/client.js`](https://github.com/glenjamin/webpack-hot-middleware/blob/master/client.js)
-* The container instantiates a compiler (based on webpack config file found along the container config file) and calls [`watch`](https://webpack.js.org/api/node/#watching).to starts watching.
-* When a compilation is done the container requires *node* bundles (configurations which has `node` as target).
-* *Node* bundles can be restarted at each compilation with the container option `autoRestart`.
-* If a *node* bundle exports an [http server instance](https://nodejs.org/api/http.html#http_class_http_server), the container tries to decorate the request listener.
-  * It uses [webpack-hot-middleware](https://github.com/glenjamin/webpack-hot-middleware) if option `hmr` is enabled.
-  * It serves assets of *web* bundles according to their stats under the webpack config options [`output.publicPath`](https://webpack.js.org/configuration/output/#output-publicpath) (or `/` by default).
-  * It injects stats of *web* bundles (in JSON format) in each request under `res.locals.webpackStats`.
-* The container will be restarted when a metafile has changed (container config, webpack config and each metafiles specify in the container config option `metafiles`).
-
-### Usage example
-
-*If you don't need to override default options, you can leave container configuration file empty.*
-
-*Note: the functions below are a simplified version of default ones.*
-
-```shell
-$ ./node_modules/.bin/udkc ./udk.container.js
-```
-
-```javascript
-/** udk.container.js */
-
-module.exports = {
-  // __filename
-  // __dirname
-
-  autoRestart: false,
-  bundleAvailableEvent: 'bundle-available',
-  context: __dirname,
-  hmr: {
-    configs: undefined, // restrict HMR to configs which has its name in that option
-    entries: ['main', 'index'], // restrict HMR to entries which has its name in that option
-    entriesNode: ['server'], // concatenated with hmr.entries => ['server', 'main', 'index']
-    entriesWeb: ['browser'], // concatenated with hmr.entries => ['server', 'main', 'index']
-    hotPollInterval: 1000,
-    hotMiddleware: {
-      path: '/__webpack_hmr'
-    },
-    hotMiddlewareClient: {
-      overlay: true
-    }
-  },
-  logger: console,
-  metadirs: [
-
-  ],
-  metafiles: [
-    'package.json',
-  ],
-  processTitle: 'udk-ctnr',
-  stats: {
-
-  },
-  statsToJson: {
-    source: false
-  },
-  statsToString: {
-    colors: require('supports-color')
-  },
-  topModuleEntries: [
-    /^source-map-support/
-  ],
-  watchOptions: {
-    aggregateTimeout: 200
-  },
-  webpackConfig: 'webpack.config.js',
-
-  // compiler,
-  // compilerWatcher,
-
-  bootstrap (proc, configPath) {
-    this.logger.info('> bootstrap container')
-  },
-  injectWebpackStats (webpackStats, req, res) {
-    res.locals = res.locals || Object.create(null)
-    res.locals.webpackStats = Object.assign({}, res.locals.webpackStats, webpackStats)
-  },
-  onCompilerWatchClose () {
-    this.logger.info('>>> compiler watch close')
-  },
-  onCompilerDone (stats) {
-    this.logger.info('>>> compiler done')
-  },
-  onCompilerFailed (err) {
-    this.logger.error('>>> compiler failed')
-  },
-  onCompilerInvalid (...args) {
-    this.logger.info('>>> compiler invalid', args)
-  },
-  onCompilerWatching (err, stats) {
-    this.logger.info('>>> compiler watching...')
-  },
-  onDown (event, ...args) {
-    this.logger.info('>> container down', {event, args})
-  },
-  onUncaughtException (err) {
-    this.logger.error('uncaught exception', err)
-  },
-  onUnhandledRejection (reason, promise) {
-    this.logger.error('unhandled rejection', {reason, promise})
-  },
-  onUp (proc) {
-    this.logger.info('>> container up')
-  },
-  prepareCompiler (compiler) {
-    this.logger.info('>>> prepare webpack compiler')
-  },
-  prepareWebpackConfig () {
-    this.logger.info('>>> prepare webpack config')
-  },
-  printCompilerError (err) {
-    this.logger.error(err)
-  },
-  printCompilerStats (stats) {
-    this.logger.info(this.stringifyCompilerStats(stats))
-  },
-  jsonifyCompilerStats (stats) {
-    return stats.toJson(this.statsToJson)
-  },
-  stringifyCompilerStats (stats) {
-    return stats.toString(this.statsToString)
-  }
-}
-```
-
-```javascript
-/** webpack.config.js */
-
-const webpack = require('webpack')
-const {join} = require('path')
-const {readdirSync} = require('fs')
-
-const envName = process.env.NODE_ENV || 'development'
-const isProd = process.env.NODE_ENV === 'production'
-const isDev = !isProd
-
-const context = __dirname
-const nodeModulesDir = 'node_modules'
-
-const devtool = isProd ? 'source-map' : 'eval'
-const filename = isProd ? '[name].[chunkhash].js' : '[name].js'
-const resolveExtensions = () => ['.js']
-
-const clientEntry = join(context, 'client', 'index.js')
-const clientOutputPath = join(context, 'build', 'client')
-const clientPublicPath = '/client/'
-
-const serverEntry = join(context, 'server', 'index.js')
-const serverOutputPath = join(context, 'build', 'server')
-
-function babelRule (options) {
-  return Object.assign({
-    test: /\.js$/,
-    exclude: /node_modules/,
-    use: 'babel-loader'
-  }, options)
-}
-
-function compact (...args) {
-  return [].concat(...args).filter((value) => value)
-}
-
-function getExternals (options = {}) {
-  if (typeof options === 'string') {
-    options = {context: options}
-  }
-
-  if (typeof options === 'function') {
-    options = {filter: options}
-  }
-
-  if (typeof arguments[1] === 'function') {
-    options = Object.assign({filter: arguments[1]}, options)
-  }
-
-  const context = options.context || process.cwd()
-  const filter = options.filter || (() => true)
-  const modulesDir = options.modulesDir || 'node_modules'
-  const importType = options.importType || 'commonjs'
-
-  return readdirSync(join(context, modulesDir))
-    .filter(filter)
-    .reduce((acc, mod) => {
-      acc[mod] = [importType, mod].join(' ')
-
-      return acc
-    }, {})
-}
-
-const client = {
-  name: 'client',
-  target: 'web',
-  context,
-  devtool,
-  entry: compact(
-    isDev && [
-
-    ],
-    clientEntry
-  ),
-  output: {
-    filename,
-    chunkFilename: filename,
-    path: clientOutputPath,
-    publicPath: clientPublicPath
-  },
-  resolve: {
-    extensions: resolveExtensions()
-  },
-  module: {
-    rules: compact(
-      babelRule({
-        exclude: new RegExp(nodeModulesDir)
-      })
-    )
-  },
-  plugins: compact(
-    isDev && [
-      new webpack.NamedModulesPlugin()
-    ],
-    isProd && [
-      new webpack.HashedModuleIdsPlugin(),
-      new webpack.optimize.UglifyJsPlugin({
-        compress: {screw_ie8: true, warnings: false},
-        mangle: {screw_ie8: true},
-        output: {screw_ie8: true, comments: false},
-        sourceMap: true
-      })
-    ],
-    new webpack.optimize.CommonsChunkPlugin({
-      filename,
-      minChunks: Infinity,
-      names: ['bootstrap']
-    }),
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(envName)
-    })
-  )
-}
-
-const server = {
-  name: 'server',
-  dependencies: [client.name],
-  target: 'node',
-  context,
-  devtool,
-  entry: compact(
-    'source-map-support/register',
-    serverEntry
-  ),
-  output: {
-    filename: '[name].js',
-    libraryTarget: 'commonjs2',
-    path: serverOutputPath
-  },
-  resolve: {
-    extensions: resolveExtensions()
-  },
-  module: {
-    rules: compact(
-      babelRule({
-        exclude: new RegExp(nodeModulesDir)
-      })
-    )
-  },
-  externals: getExternals({
-    context,
-    modulesDir: nodeModulesDir,
-    filter: (mod) => {
-      switch (mod) {
-        case '.bin':
-        case 'source-map':
-        case 'source-map-support':
-          return false
-      }
-
-      return true
-    }
-  }),
-  plugins: compact(
-    isDev && [
-      new webpack.NamedModulesPlugin()
-    ],
-    isProd && [
-      new webpack.HashedModuleIdsPlugin()
-    ],
-    new webpack.optimize.LimitChunkCountPlugin({
-      maxChunks: 1
-    }),
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(envName)
-    })
-  )
-}
-
-module.exports = [
-  client,
-  server
-]
-```
-
-```javascript
-/** server/index.js */
-
-const {createServer} = require('http')
-let app = require('./app')
-
-const server = createServer((req, res) => app(req, res))
-
-server.listen(3000, () => console.log('Server listening -- http://localhost:3000'))
-
-module.exports = server
-
-if (module.hot) {
-  module.hot.accept('./app.js', () => {
-    app = require('./app.js')
-  })
-}
-```
-
-```javascript
-/** server/app.js */
-
-const express = require('express')
-
-const app = express()
-
-app.use((req, res) => {
-  const {webpackStats} = res.locals
-
-  res.send(`
-  <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>udk-base-example</title>
-      </head>
-      <body>
-        <h1>Client stats</h1>
-        <p>Yep! I'm the server and I have an access to the client's stats</p>
-        <pre style="background: #ccc">
-          ${JSON.stringify(webpackStats, null, 2)}
-        </pre>
-      </body>
-    </html>
-  `)
-})
-
-module.exports = app
-```
+* [webpack-cli](https://github.com/webpack/webpack-cli) (v4) ;
+* [webpack-command](https://github.com/webpack-contrib/webpack-command) (v4) ;
+* [webpack/cli](https://github.com/webpack/webpack/tree/v3.0.0/bin) (v3).
 
 ## Node.js API
 
-Same as [webpack's Node.js API](https://webpack.js.org/api/node/).
+See [docs/api.md](./docs/api.md).
 
-*The only difference is that udk accepts path to webpack config*
+## FAQ
 
-```javascript
-udk(
-  String|[String]|Object|[Object] options,
-  Function callback?
-) : Compiler?
+See [docs/faq.md](./docs/faq.md).
 
-// Examples
-const udk = require('udk')
+## DevContainer
 
-// udk(String configFilePath)
-const compiler = udk(__dirname + '/webpack.config.js')
-
-// udk([String] configFilePath)
-const compiler = udk([
-  __dirname + '/webpack.client.js',
-  __dirname + '/webpack.server.js',
-])
-
-// udk(String configFilePath, Function callback)
-udk(__dirname + '/webpack.config.js', (err, stats) => console.log({err, stats}))
-```
-
-```javascript
-udk(
-  String projectContext, String|[String] configFilePath,
-  Function callback?
-) : Compiler?
-
-// Examples
-const udk = require('udk')
-
-// udk(String projectContext, String configFilePath)
-const compiler = udk(__dirname, 'webpack.config.js')
-
-// udk(String projectContext, [String] configFilePath)
-const compiler = udk(__dirname, [
-  'webpack.client.js',
-  'webpack.server.js'
-])
-
-// udk(String projectContext, String configFilePath, Function callback)
-udk(__dirname, 'webpack.config.js', (err, stats) => console.log({err, stats}))
-```
-
-### Compiler
-
-#### run
-
-```javascript
-run(Function callback) : void
-
-// Example
-const udk = require('udk')
-
-const compiler = udk(__dirname, 'webpack.config.js')
-
-compiler.run((err, stats) => console.log({err, stats}))
-```
-
-#### watch
-
-```javascript
-watch(
-  Object watchOptions,
-  Function handler
-) : Watching
-
-// Example
-const udk = require('udk')
-
-const compiler = udk(__dirname, 'webpack.config.js')
-
-const watching = compiler.watch(
-  {aggregateTimeout: 200},
-  (err, stats) => console.log({err, stats})
-)
-```
-
-### Watching
-
-#### close
-
-```javascript
-close(Function callback?) : void
-
-// Example
-const udk = require('udk')
-
-const compiler = udk(__dirname, 'webpack.config.js')
-
-const watching = compiler.watch(
-  {aggregateTimeout: 200},
-  (err, stats) => console.log({err, stats})
-)
-
-watching.close(() => console.log('Stop watching'))
-```
+See [docs/dev-container.md](./docs/dev-container.md).
 
 ## Implementation
 
-### Compatibility
-
-| udk | webpack3 | webpack4 | angular-devkit |
-|-----|----------|----------|----------------|
-| v0.3.17 |  |  | v0.8.0-beta.0 |
-| v0.3.15 |  |  | v0.7.0-rc.2 |
-| v0.3.14 |  |  | v0.7.0 |
-| v0.3.13 |  |  | v0.6.0 |
-| [v0.3.0](https://github.com/enten/udk/tree/v0.3.0) | [v3.11.0](https://github.com/webpack/webpack/tree/v3.11.0) | [v4.4.1](https://github.com/webpack/webpack/tree/v4.4.1) |
-| [v0.2.4](https://github.com/enten/udk/tree/v0.2.4) | [v3.5.5](https://github.com/webpack/webpack/tree/v3.5.5) | - |
-
-### Files
-
-* webpack/bin/webpack.js `->` **[udk/bin/udk.js](https://github.com/enten/udk/blob/master/bin/udk.js)**
-    * [webpack@3.11.0/bin/webpack.js](https://github.com/webpack/webpack/blob/v3.11.0/bin/webpack.js) `-->` **[udk/bin/udk.webpack3.js](https://github.com/enten/udk/blob/master/bin/udk.webpack3.js)**
-    * [webpack@4.4.1/bin/webpack.js](https://github.com/webpack/webpack/blob/v4.4.1/bin/webpack.js) `-->` **[udk/bin/udk.webpack4.js](https://github.com/enten/udk/blob/master/bin/udk.webpack4.js)**
-    * [webpack-cli@2.0.11/bin/webpack.js](https://github.com/webpack/webpack-cli/blob/v2.0.11/bin/webpack.js) `-->` **[udk/bin/udk.webpack4-cli.js](https://github.com/enten/udk/blob/master/bin/udk.webpack4-cli.js)**
-* [webpack@4.4.1/lib/MultiCompiler.js](https://github.com/webpack/webpack/blob/v4.4.1/lib/MultiCompiler.js) `->` **[udk/lib/MultiCompiler.js](https://github.com/enten/udk/blob/master/lib/MultiCompiler.js)**
-* webpack/lib/webpack.js `->` **[udk/lib/webpack.js](https://github.com/enten/udk/blob/master/lib/webpack.js)**
-    * [webpack@3.11.0/lib/webpack.js](https://github.com/webpack/webpack/blob/v3.11.0/lib/webpack.js) `-->` **[udk/bin/webpack.v3.js](https://github.com/enten/udk/blob/master/lib/webpack.v3.js)**
-    * [webpack@4.4.1/lib/webpack.js](https://github.com/webpack/webpack/blob/v4.4.1/lib/webpack.js) `-->` **[udk/bin/webpack.v4.js](https://github.com/enten/udk/blob/master/lib/webpack.v4.js)**
-* `+` **[udk/bin/udkc.js](https://github.com/enten/udk/blob/master/bin/udkc.js)**
-* `+` **[udk/lib/devContainer.js](https://github.com/enten/udk/blob/master/lib/devContainer.js)**
-* `+` **[udk/lib/udk.js](https://github.com/enten/udk/blob/master/lib/udk.js)**
-* `+` [udk/lib/util/Watchpack2.js](https://github.com/enten/udk/blob/master/lib/util/Watchpack2.js)
-* `+` [udk/lib/util/WatchpackFork.js](https://github.com/enten/udk/blob/master/lib/util/WatchpackFork.js)
-* `+` [udk/lib/util/bindExitHandler.js](https://github.com/enten/udk/blob/master/lib/util/bindExitHandler.js)
-* `+` [udk/lib/util/compatPlugin.js](https://github.com/enten/udk/blob/master/lib/util/compatPlugin.js)
-* `+` [udk/lib/util/container.js](https://github.com/enten/udk/blob/master/lib/util/container.js)
-* `+` [udk/lib/util/debug.js](https://github.com/enten/udk/blob/master/lib/util/debug.js)
-* `+` [udk/lib/util/decorateEventListener.js](https://github.com/enten/udk/blob/master/lib/util/decorateEventListener.js)
-* `+` [udk/lib/util/ensureConfigHasEntry.js](https://github.com/enten/udk/blob/master/lib/util/ensureConfigHasEntry.js)
-* `+` [udk/lib/util/ensureConfigHasPlugin.js](https://github.com/enten/udk/blob/master/lib/util/ensureConfigHasPlugin.js)
-* `+` [udk/lib/util/findForTarget.js](https://github.com/enten/udk/blob/master/lib/util/findForTarget.js)
-* `+` [udk/lib/util/getEntryOutputPathFromStats.js](https://github.com/enten/udk/blob/master/lib/util/getEntryOutputPathFromStats.js)
-* `+` [udk/lib/util/getOutputPublicPath.js](https://github.com/enten/udk/blob/master/lib/util/getOutputPublicPath.js)
-* `+` [udk/lib/util/isCompilerV4.js](https://github.com/enten/udk/blob/master/lib/util/isCompilerV4.js)
-* `+` [udk/lib/util/moduleExists.js](https://github.com/enten/udk/blob/master/lib/util/moduleExists.js)
-* `+` [udk/lib/util/requireDefault.js](https://github.com/enten/udk/blob/master/lib/util/requireDefault.js)
-* `+` [udk/lib/util/resolveWith.js](https://github.com/enten/udk/blob/master/lib/util/resolveWith.js)
-
-### Class diagram
-
-```
-┌┄ tapable ┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-┆ ┌───────────────────┐ ┆
-┆ |      Tapable      |<════════════╗
-┆ └─────────Λ─────────┘ ┆           ║
-└┄┄┄┄┄┄┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┘           ║
-            ║                       ║
-┌┄ webpack ┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-┆ ┌─────────╨─────────┐   ┌─────────╨─────────┐   ┌───────────────────┐ ┆
-┆ |   MultiCompiler   ├──>|     Compiler      ├──>|     Watching      | ┆
-┆ └─────────Λ─────────┘   └─────────Λ─────────┘   └───────────────────┘ ┆
-└┄┄┄┄┄┄┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-            ║                       │
-┌┄ udk ┄┄┄┄┄║┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-┆ ┌─────────╨─────────┐   ┌─────────┴─────────┐   ┌───────────────────┐ ┆
-┆ |   MultiCompiler   |<──┤   DevContainer    ╞══>|     Container     | ┆
-┆ └───────────────────┘   └───────────────────┘   └───────────────────┘ ┆
-└┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-
-┄┄┄┄ package
-──── module
-═══> extend relation
-───> 0..n relation
-```
-
-* [tapable/lib/Tapable](https://github.com/webpack/tapable/blob/v1.0.0/lib/Tapable.js)
-* **[udk/lib/MultiCompiler](https://github.com/enten/udk/blob/v0.3.0/lib/MultiCompiler.js)**
-* **[udk/lib/devContainer](https://github.com/enten/udk/blob/v0.3.0/lib/devContainer.js)**
-* **[udk/lib/util/container](https://github.com/enten/udk/blob/v0.3.0/lib/util/container.js)**
-* [webpack/lib/Compiler](https://github.com/webpack/webpack/blob/v4.4.1/lib/Compiler.js)
-* [webpack/lib/MultiCompiler](https://github.com/webpack/webpack/blob/v4.4.1/lib/MultiCompiler.js)
-* [webpack/lib/Watching](https://github.com/webpack/webpack/blob/v4.4.1/lib/Watching.js)
+See [docs/implementation.md](./docs/implementation.md).
 
 ## License
 
