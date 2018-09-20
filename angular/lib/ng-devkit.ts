@@ -78,10 +78,10 @@ export function loadArchitect(workspace: experimental.workspace.Workspace): Obse
   return architect.loadArchitect();
 }
 
-export function loadWorkspace(host: virtualFs.Host) {
-  const workspaceLoader = new WorkspaceLoader(host);
+export function loadWorkspace(host: virtualFs.Host): Observable<experimental.workspace.Workspace> {
+  const workspaceLoader = new WorkspaceLoader(host as any); // tslint:disable-line: no-any
 
-  return workspaceLoader.loadWorkspace();
+  return workspaceLoader.loadWorkspace() as any; // tslint:disable-line: no-any
 }
 
 export function loadWorkspaceAndArchitect(host: virtualFs.Host): Observable<Architect> {
