@@ -680,8 +680,6 @@ export class DevContainerRuntime extends ContainerRuntime {
             bundle: WebpackBundle,
           ) => {
             decorateRequestListener(bundle.mainOutputExportsDefault, (req, res, next) => {
-              dbug('decorate %s with webpack-hot-middleware', nodeConfig.name);
-
               if (!hotMiddleware) {
                 dbug('create webpack-hot-middleware %O', hmr.hotMiddleware);
 
