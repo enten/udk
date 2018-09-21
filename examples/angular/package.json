@@ -3,8 +3,12 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
+    "prestart": "npm run build:prod",
+    "start": "node $npm_package_main",
+    "build": "ng run ng-universal:udk",
+    "build:prod": "ng run ng-universal:udk:production",
+    "dev": "ng-udkc",
+    "dev:spa": "ng serve --hmr",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"
@@ -27,7 +31,6 @@
     "core-js": "^2.5.4",
     "express": "^4.16.3",
     "rxjs": "~6.3.2",
-    "udk": "^1.0.0-alpha.0",
     "zone.js": "~0.8.26"
   },
   "devDependencies": {
@@ -50,6 +53,7 @@
     "protractor": "~5.4.0",
     "ts-node": "~7.0.0",
     "tslint": "~5.11.0",
-    "typescript": "~3.0.1"
+    "typescript": "~3.0.1",
+    "udk": "^1.0.0-alpha.0"
   }
 }
