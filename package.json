@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/udk/udk"
+    "url": "https://github.com/enten/udk"
   },
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
