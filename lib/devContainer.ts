@@ -235,7 +235,7 @@ export class DevContainerRuntime extends ContainerRuntime {
 
       /* istanbul ignore next */
       decorateRequestListener(mainOutputExportsDefault, (
-        req: http.ServerRequest,
+        req: http.IncomingMessage,
         res: http.ServerResponse,
         next: (err?: Error) => void,
       ) => {
@@ -671,7 +671,7 @@ export class DevContainerRuntime extends ContainerRuntime {
       (nodeConfig.plugins as webpack.Plugin[]).push({
         apply: (compiler: webpack.Compiler) => {
           let hotMiddleware: (
-            req: http.ServerRequest,
+            req: http.IncomingMessage,
             res: http.ServerResponse,
             next: (err?: Error) => void,
           ) => void;

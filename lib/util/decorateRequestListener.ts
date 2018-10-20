@@ -7,13 +7,13 @@ import { decorateEventListener } from './decorateEventListener';
 export function decorateRequestListener(
   emitter: any, // tslint:disable-line:no-any
   decorator: (
-    req: http.ServerRequest,
+    req: http.IncomingMessage,
     res: http.ServerResponse,
     next: (err?: Error) => void,
   ) => void,
 ) {
   return decorateEventListener(emitter, 'request', (
-    req: http.ServerRequest,
+    req: http.IncomingMessage,
     res: http.ServerResponse,
     next: (err?: Error) => void,
   ) => {

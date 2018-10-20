@@ -121,7 +121,7 @@ export = <DevContainerConfig> { // tslint:disable-line:no-angle-bracket-type-ass
   },
   requestDecorator(
     bundle: WebpackBundle,
-    req: http.ServerRequest,
+    req: http.IncomingMessage,
     res: http.ServerResponse,
     next: (err?: Error) => void,
   ) {
@@ -131,7 +131,7 @@ export = <DevContainerConfig> { // tslint:disable-line:no-angle-bracket-type-ass
   },
   injectWebpackStats(
     compilerStats: { [name: string]: webpack.Stats },
-    req: http.ServerRequest,
+    req: http.IncomingMessage,
     res: any, // tslint:disable-line:no-any
   ) {
     const webpackStats: { [name: string]: any } = {}; // tslint:disable-line:no-any
