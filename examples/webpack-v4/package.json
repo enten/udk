@@ -10,7 +10,7 @@
     "start": "node ./dist/server/main.js"
   },
   "devDependencies": {
-    "udk": "^1.0.0-alpha.1",
-    "webpack": "^4.19.1"
+    "udk": "^1.0.0-alpha.2",
+    "webpack": "^4.21.0"
   }
 }
