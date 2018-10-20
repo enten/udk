@@ -47,7 +47,7 @@
       "udk": [ "./lib/index" ],
       "udk/*": [ "./*" ],
       "webpack-plugin-compat": [ "./types/webpack-plugin-compat" ],
-      "yargs-parser": [ "./types/yargs-parser" ],
+      "yargs-parser": [ "./types/yargs-parser" ]
     },
   },
   "exclude": [
@@ -55,6 +55,6 @@
     "examples/**/*",
     "dist/**/*",
     "docs/**/*",
-    "node_modules/**/*",
+    "node_modules/**/*"
   ]
 }

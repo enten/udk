@@ -169,10 +169,11 @@ export function getCancelledCompilation(compiler: WebpackCompiler2) {
 
   const previousCompilers = compilesBadly.map(c => c.name).join(', ');
 
-  const compilation = compiler.createCompilation() as any;  // tslint:disable-line:no-any
+  const compilation = compiler.createCompilation() as any; // tslint:disable-line:no-any
   compilation.name = compiler.name;
 
   compilation.errors.push(new Error(
+    // tslint:disable-next-line:max-line-length
     `[udk] MultiCompiler\nCompilation cancelled due to errors in previous compilers: ${previousCompilers}`,
   ));
 
