@@ -23,7 +23,7 @@
 #### Run universal build
 
 ```
-ng run ng-universal:udk
+ng run angular:udk
 ```
 
 #### angular.json
@@ -34,7 +34,7 @@ ng run ng-universal:udk
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "ng-universal": {
+    "angular": {
       "root": "",
       "projectType": "application",
       "prefix": "app",
@@ -64,13 +64,13 @@ ng run ng-universal:udk
 +       "udk": {
 +         "builder": "udk:udk-builder",
 +         "options": {
-+           "browserTarget": "ng-universal:build",
-+           "serverTarget": "ng-universal:server"
++           "browserTarget": "angular:build",
++           "serverTarget": "angular:server"
 +         },
 +         "configurations": {
 +           "production": {
-+             "browserTarget": "ng-universal:build:production",
-+             "serverTarget": "ng-universal:server:production",
++             "browserTarget": "angular:build:production",
++             "serverTarget": "angular:server:production",
 +             "verbose": true
 +           }
 +         }
@@ -105,7 +105,7 @@ npx ng-udkc --config
 ```js
 module.exports = {
   context: __dirname,
-  angularProject: 'ng-universal:udk',
+  angularProject: 'angular:udk',
   hmr: true,
   metafiles: [
     __filename,
