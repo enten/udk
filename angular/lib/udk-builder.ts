@@ -51,20 +51,35 @@ import * as webpack from 'webpack';
 import * as webpackConfigsUtils from '@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils';
 
 // support @angular-devkit/build-angular v0.7.0 (e5d68c19)
-let { getWebpackStatsConfig } = webpackConfigsUtils;
+let getWebpackStatsConfig: (verbose?: boolean) => {
+  colors: boolean;
+  hash: boolean;
+  timings: boolean;
+  chunks: boolean;
+  chunkModules: boolean;
+  children: boolean;
+  modules: boolean;
+  reasons: boolean;
+  warnings: boolean;
+  errors: boolean;
+  assets: boolean;
+  version: boolean;
+  errorDetails: boolean;
+  moduleTrace: boolean;
+};
 
-if (!getWebpackStatsConfig) {
+if (!(webpackConfigsUtils as any).getWebpackStatsConfig) { // tslint:disable-line:no-any
   // tslint:disable-next-line:max-line-length
   getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
 }
 
-const {
-  addFileReplacements,
-  normalizeAssetPatterns,
-} = buildAngularUtils;
+const { normalizeAssetPatterns } = buildAngularUtils;
 
 // support @angular-devkit/build-angular v0.7.0-rc.2
-const { normalizeFileReplacements } = buildAngularUtils as any; // tslint:disable-line:no-any
+const {
+  addFileReplacements,
+  normalizeFileReplacements,
+} = buildAngularUtils as any; // tslint:disable-line:no-any
 
 function supportFileReplacement(
   options: { fileReplacements: FileReplacement[] },
