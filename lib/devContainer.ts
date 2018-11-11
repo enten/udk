@@ -254,7 +254,7 @@ export class DevContainerRuntime extends ContainerRuntime {
 
       this.bundles[stats.compilation.compiler.name] = bundle;
     } catch (err) /* istanbul ignore next */ {
-      this.logger.error(err);
+      this.logger.error(`${err && err.stack || err}`);
       this.logger.error('--');
       this.logger.error('RUNTIME ERROR!');
       this.logger.error('Container will shutdown. A container reload is needed.');
