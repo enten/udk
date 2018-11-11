@@ -370,6 +370,20 @@ export default class UdkBuilder implements Builder<BuildUdkSchema> {
           options as NormalizedBrowserBuilderSchema,
         );
 
+        // fix: disable server builder to emit assets
+        if (BuilderCtor === ServerBuilder && webpackConfig.module && webpackConfig.module.rules) {
+          const fileLoader = webpackConfig.module.rules.find(rule => rule.loader === 'file-loader');
+
+          if (fileLoader) {
+            if (fileLoader.options) {
+              // tslint:disable-next-line:no-any
+              (fileLoader.options as { [k: string]: any }).emitFile = false;
+            } else {
+              fileLoader.options = { emitFile: false };
+            }
+          }
+        }
+
         return this._applyPartialWebpackConfig(webpackConfig, partialWebpackConfig);
       }),
       map(webpackConfig => ({
