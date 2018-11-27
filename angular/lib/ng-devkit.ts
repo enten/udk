@@ -16,7 +16,7 @@ import { experimental, logging, resolve, virtualFs } from '@angular-devkit/core'
 import { NodeJsSyncHost, createConsoleLogger } from '@angular-devkit/core/node';
 import { WorkspaceLoader } from '@angular/cli/models/workspace-loader';
 
-import { Observable, of as observableOf } from 'rxjs';
+import { Observable, from as fromToObservable, of as observableOf } from 'rxjs';
 import { concatMap, map } from 'rxjs/operators';
 
 import * as webpack from 'webpack';
@@ -80,8 +80,14 @@ export function loadArchitect(workspace: experimental.workspace.Workspace): Obse
 
 export function loadWorkspace(host: virtualFs.Host): Observable<experimental.workspace.Workspace> {
   const workspaceLoader = new WorkspaceLoader(host as any); // tslint:disable-line: no-any
+  const workspaceLoading = workspaceLoader.loadWorkspace() as any; // tslint:disable-line: no-any
 
-  return workspaceLoader.loadWorkspace() as any; // tslint:disable-line: no-any
+  // support @angular/cli v7.1.0
+  if (typeof (workspaceLoading as any).then === 'function') { // tslint:disable-line: no-any
+    return fromToObservable(workspaceLoading);
+  }
+
+  return workspaceLoading;
 }
 
 export function loadWorkspaceAndArchitect(host: virtualFs.Host): Observable<Architect> {
