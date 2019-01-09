@@ -18,13 +18,16 @@ import {
 } from '@angular-devkit/architect';
 
 import {
+  AssetPattern,
+  AssetPatternObject,
   BrowserBuilder,
   BrowserBuilderSchema,
   NormalizedBrowserBuilderSchema,
   ServerBuilder,
 } from '@angular-devkit/build-angular';
 import { BuildWebpackServerSchema } from '@angular-devkit/build-angular/src/server/schema';
-import * as buildAngularUtils from '@angular-devkit/build-angular/src/utils';
+import { NormalizedFileReplacement } from '@angular-devkit/build-angular/src/utils';
+const buildAngularUtils = require('@angular-devkit/build-angular/src/utils');
 
 import {
   statsErrorsToString,
@@ -41,7 +44,7 @@ import {
   of as observableOf,
   zip,
 } from 'rxjs';
-import { concatMap, map, tap } from 'rxjs/operators';
+import { concatMap, map } from 'rxjs/operators';
 
 import * as fs from 'fs';
 import udk = require('udk');
@@ -49,6 +52,8 @@ import * as webpack from 'webpack';
 
 // tslint:disable-next-line:max-line-length
 import * as webpackConfigsUtils from '@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils';
+
+import { NG_DEVKIT_0_12 } from './versions';
 
 // support @angular-devkit/build-angular v0.7.0 (e5d68c19)
 let getWebpackStatsConfig: (verbose?: boolean) => {
@@ -73,30 +78,84 @@ if (!(webpackConfigsUtils as any).getWebpackStatsConfig) { // tslint:disable-lin
   getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
 }
 
-const { normalizeAssetPatterns } = buildAngularUtils;
-
 // support @angular-devkit/build-angular v0.7.0-rc.2
 const {
   addFileReplacements,
+  normalizeAssetPatterns,
   normalizeFileReplacements,
+  normalizeOptimization,
 } = buildAngularUtils as any; // tslint:disable-line:no-any
 
 function supportFileReplacement(
   options: { fileReplacements: FileReplacement[] },
   root: Path,
-  host: virtualFs.AliasHost,
+  host: virtualFs.Host,
   fileReplacements: FileReplacement[],
 ) {
   // <= v0.7.0-rc.1
   if (addFileReplacements) {
     options.fileReplacements = fileReplacements;
 
+    // Note: This method changes the file replacements in host.
     return addFileReplacements(root, host, fileReplacements);
   }
 
-  return normalizeFileReplacements(fileReplacements, host, root).pipe(
+  // >= angular/cli v7.2 (>= angular-devkit/build-angular v0.12)
+  if (NG_DEVKIT_0_12) {
+    host = new virtualFs.SyncDelegateHost(host) as {} as virtualFs.Host;
+  }
+
+  let normalizedFileReplacements = normalizeFileReplacements(
+    fileReplacements,
+    host,
+    root,
+  ) as Observable<NormalizedFileReplacement[]>;
+
+  // >= v0.12.0
+  if (Array.isArray(normalizedFileReplacements)) {
+    normalizedFileReplacements = observableOf(
+      normalizedFileReplacements as NormalizedFileReplacement[],
+    );
+  }
+
+  return normalizedFileReplacements.pipe(
     map((fileReplacements: FileReplacement[]) => {
       options.fileReplacements = fileReplacements;
+    }),
+  );
+}
+
+// support @angular-devkit/build-angular v0.12.0
+function supportAssetPatterns(
+  options: { assets: AssetPattern[] },
+  root: Path,
+  projectRoot: Path,
+  host: virtualFs.Host,
+  assetPatterns: AssetPattern[],
+  maybeSourceRoot: Path | undefined,
+) {
+  // >= angular/cli v7.2 (>= angular-devkit/build-angular v0.12)
+  if (NG_DEVKIT_0_12) {
+    host = new virtualFs.SyncDelegateHost(host) as {} as virtualFs.Host;
+  }
+
+  let normalizedAssetPatterns = (
+    options.assets
+      ? normalizeAssetPatterns(assetPatterns, host, root, projectRoot, maybeSourceRoot)
+      : observableOf(null)
+  ) as Observable<AssetPatternObject[]>;
+
+  // >= v0.12.0
+  if (Array.isArray(normalizedAssetPatterns)) {
+    normalizedAssetPatterns = observableOf(normalizedAssetPatterns as AssetPatternObject[]);
+  }
+
+  return normalizedAssetPatterns.pipe(
+    // Replace the assets in options with the normalized version.
+    map(assetPatternObjects => {
+      if (assetPatternObjects) {
+        options.assets = assetPatternObjects;
+      }
     }),
   );
 }
@@ -342,23 +401,22 @@ export default class UdkBuilder implements Builder<BuildUdkSchema> {
           fileReplacements,
         );
 
+        // compat with angular-cli commit 4f8a5b7a changes
+        if (typeof normalizeOptimization === 'function') {
+          options.optimization = normalizeOptimization(options.optimization);
+        }
+
         return observableOf(null);
       }),
       concatMap(() => supportFileReplacement(options, root, host, fileReplacements)),
-      concatMap(() => (options as BrowserBuilderSchema).assets
-        ? normalizeAssetPatterns(
-          (options as BrowserBuilderSchema).assets,
-          host,
-          root,
-          projectRoot,
-          builderConfig.sourceRoot,
-        ) : observableOf(null)),
-      // Replace the assets in options with the normalized version.
-      tap(assetPatternObjects => {
-        if (assetPatternObjects) {
-          (options as BrowserBuilderSchema).assets = assetPatternObjects;
-        }
-      }),
+      concatMap(() => supportAssetPatterns(
+        (options as BrowserBuilderSchema),
+        root,
+        projectRoot,
+        host,
+        (options as BrowserBuilderSchema).assets,
+        builderConfig.sourceRoot,
+      )),
       concatMap(() => {
         const builder = new BuilderCtor(this.context);
         let webpackConfig: webpack.Configuration;
