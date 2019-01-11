@@ -84,6 +84,7 @@ const {
   normalizeAssetPatterns,
   normalizeFileReplacements,
   normalizeOptimization,
+  normalizeSourceMaps,
 } = buildAngularUtils as any; // tslint:disable-line:no-any
 
 function supportFileReplacement(
@@ -91,7 +92,7 @@ function supportFileReplacement(
   root: Path,
   host: virtualFs.Host,
   fileReplacements: FileReplacement[],
-) {
+): Observable<void> {
   // <= v0.7.0-rc.1
   if (addFileReplacements) {
     options.fileReplacements = fileReplacements;
@@ -133,7 +134,7 @@ function supportAssetPatterns(
   host: virtualFs.Host,
   assetPatterns: AssetPattern[],
   maybeSourceRoot: Path | undefined,
-) {
+): Observable<void> {
   // >= angular/cli v7.2 (>= angular-devkit/build-angular v0.12)
   if (NG_DEVKIT_0_12) {
     host = new virtualFs.SyncDelegateHost(host) as {} as virtualFs.Host;
@@ -404,6 +405,11 @@ export default class UdkBuilder implements Builder<BuildUdkSchema> {
         // compat with angular-cli commit 4f8a5b7a changes
         if (typeof normalizeOptimization === 'function') {
           options.optimization = normalizeOptimization(options.optimization);
+        }
+
+        // compat with angular-cli commit 8516d682 changes
+        if (typeof normalizeSourceMaps === 'function') {
+          options.sourceMap = normalizeSourceMaps(options.sourceMap);
         }
 
         return observableOf(null);
