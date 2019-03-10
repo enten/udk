@@ -84,7 +84,7 @@ export function loadWorkspace(host: virtualFs.Host): Observable<experimental.wor
 
   // support @angular/cli v7.1.0
   if (typeof (workspaceLoading as any).then === 'function') { // tslint:disable-line: no-any
-    return fromToObservable(workspaceLoading);
+    return fromToObservable(workspaceLoading) as Observable<experimental.workspace.Workspace>;
   }
 
   return workspaceLoading;
@@ -141,7 +141,7 @@ export function prepareBuilder<OptionsT>(
 
       return architect.validateBuilderOptions(builderConfig, builderDescription);
     }),
-    map((validatedBuilderConfig) => {
+    map((_validatedBuilderConfig) => {
       const context: BuilderContext = {
         architect,
         host: architect['_workspace'].host,
@@ -165,8 +165,8 @@ export function prepareBuilder<OptionsT>(
 export function prepareWebpackConfig<OptionsT>({
   builder,
   builderConfig,
-  builderDescription,
-  targetSpecifier,
+  // builderDescription,
+  // targetSpecifier,
 }: WebpackConfigBuilderContext<OptionsT>): Observable<webpack.Configuration> {
   const builderConfigOptions = builderConfig.options;
   let builderConfigOptions$ = observableOf(builderConfigOptions);

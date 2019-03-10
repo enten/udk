@@ -9,7 +9,11 @@ import {
   resolve,
   virtualFs,
 } from '@angular-devkit/core';
-import * as terminalCapabilities from '@angular-devkit/core/src/terminal/caps';
+import * as ngTerminalCaps from '@angular-devkit/core/src/terminal/caps';
+
+export const terminalCaps = ngTerminalCaps.getCapabilities
+  ? ngTerminalCaps.getCapabilities(process.stdout)
+  : (ngTerminalCaps as {} as { stdout: ngTerminalCaps.StreamCapabilities }).stdout;
 
 import {
   Builder,
@@ -18,15 +22,20 @@ import {
 } from '@angular-devkit/architect';
 
 import {
-  AssetPattern,
-  AssetPatternObject,
   BrowserBuilder,
-  BrowserBuilderSchema,
-  NormalizedBrowserBuilderSchema,
   ServerBuilder,
 } from '@angular-devkit/build-angular';
+import {
+  AssetPattern,
+  AssetPatternClass,
+  Schema as BrowserBuilderSchema,
+} from '@angular-devkit/build-angular/src/browser/schema';
 import { BuildWebpackServerSchema } from '@angular-devkit/build-angular/src/server/schema';
-import { NormalizedFileReplacement } from '@angular-devkit/build-angular/src/utils';
+
+import {
+  NormalizedBrowserBuilderSchema,
+  NormalizedFileReplacement,
+} from '@angular-devkit/build-angular/src/utils';
 const buildAngularUtils = require('@angular-devkit/build-angular/src/utils');
 
 import {
@@ -144,11 +153,11 @@ function supportAssetPatterns(
     options.assets
       ? normalizeAssetPatterns(assetPatterns, host, root, projectRoot, maybeSourceRoot)
       : observableOf(null)
-  ) as Observable<AssetPatternObject[]>;
+  ) as Observable<AssetPatternClass[]>;
 
   // >= v0.12.0
   if (Array.isArray(normalizedAssetPatterns)) {
-    normalizedAssetPatterns = observableOf(normalizedAssetPatterns as AssetPatternObject[]);
+    normalizedAssetPatterns = observableOf(normalizedAssetPatterns as AssetPatternClass[]);
   }
 
   return normalizedAssetPatterns.pipe(
@@ -414,13 +423,18 @@ export default class UdkBuilder implements Builder<BuildUdkSchema> {
 
         return observableOf(null);
       }),
-      concatMap(() => supportFileReplacement(options, root, host, fileReplacements)),
+      concatMap(() => supportFileReplacement(
+        options as NormalizedBrowserBuilderSchema,
+        root,
+        host,
+        fileReplacements,
+      )),
       concatMap(() => supportAssetPatterns(
-        (options as BrowserBuilderSchema),
+        (options as NormalizedBrowserBuilderSchema),
         root,
         projectRoot,
         host,
-        (options as BrowserBuilderSchema).assets,
+        (options as NormalizedBrowserBuilderSchema).assets,
         builderConfig.sourceRoot,
       )),
       concatMap(() => {
@@ -465,7 +479,7 @@ export default class UdkBuilder implements Builder<BuildUdkSchema> {
     }
 
     const statsConfig = getWebpackStatsConfig(verbose);
-    statsConfig.colors = terminalCapabilities.stdout.colors;
+    statsConfig.colors = terminalCaps.colors;
 
     const compilationName = (stats.compilation as {} as { name: string }).name;
     const statsTitle = 'Child: ' + compilationName + (verbose ? '\n' : '');
