@@ -174,7 +174,7 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
 
         const shutDown = jest.fn();
 
-        c.shutDown = shutDown;
+        c.onShutDown = shutDown;
 
         (exitHook as jest.Mock).mock.calls[1][0]();
 
@@ -476,13 +476,13 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
         const config = {} as ContainerConfig;
         const onDown = jest.fn();
 
-        c.shutDown(config);
+        c.onShutDown(config);
 
         expect(onDown).not.toBeCalled();
 
         config.onDown = onDown;
 
-        c.shutDown(config);
+        c.onShutDown(config);
 
         expect(onDown).toBeCalledWith(c);
       });
@@ -498,13 +498,13 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
         const config = {} as ContainerConfig;
         const onUp = jest.fn();
 
-        await c.shutUp(config);
+        await c.onShutUp(config);
 
         expect(onUp).not.toBeCalled();
 
         config.onUp = onUp;
 
-        await c.shutUp(config);
+        await c.onShutUp(config);
 
         expect(onUp).toBeCalledWith(c);
       });

@@ -556,7 +556,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
       });
     });
 
-    describe('shutDown', () => {
+    describe('onShutDown', () => {
       it('should close compilerWatching if exists', () => {
         const c = new DevContainerRuntime(DevContainerRuntimePath, {
           argv: [],
@@ -565,14 +565,14 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
 
         const config = {} as DevContainerConfig;
 
-        c.shutDown(config);
+        c.onShutDown(config);
 
         expect(c.compilerWatching).toBeUndefined();
 
         const compilerWatching = { close: jest.fn() } as any; // tslint:disable-line:no-any
         c.compilerWatching = compilerWatching;
 
-        c.shutDown(config);
+        c.onShutDown(config);
 
         expect(c.compilerWatching).toBeUndefined();
         expect(compilerWatching.close).toBeCalled();
@@ -582,7 +582,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
       });
     });
 
-    describe('shutUp', () => {
+    describe('onShutUp', () => {
       let c: DevContainerRuntime;
 
       beforeEach(() => {
@@ -595,7 +595,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
       it('should throw when webpack compiler is missing', () => {
         const config = {} as DevContainerConfig;
 
-        c.shutUp(config).then(fail).catch(err =>
+        c.onShutUp(config).then(fail).catch(err =>
           expect(err.message)
             .toEqual('Compiler is not available (container does not seem prepared)'));
       });
@@ -606,7 +606,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
 
         c.compiler = compiler as {} as webpack.Compiler;
 
-        await c.shutUp(config);
+        await c.onShutUp(config);
 
         expect(compiler.watch).toBeCalled();
         expect(compiler.watch.mock.calls.length).toEqual(1);
@@ -623,7 +623,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
 
         c.compiler = compiler as {} as webpack.Compiler;
 
-        await c.shutUp(config);
+        await c.onShutUp(config);
 
         expect(typeof compiler.watch.mock.calls[0][1]).toEqual('function');
 
@@ -645,7 +645,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
         c.printCompilerStats = printCompilerStats;
         c.compiler = compiler as {} as webpack.Compiler;
 
-        await c.shutUp(config);
+        await c.onShutUp(config);
 
         expect(typeof compiler.watch.mock.calls[0][1]).toEqual('function');
         expect(() => compiler.watch.mock.calls[0][1](null, stats)).not.toThrowError();
@@ -667,7 +667,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
         c.printCompilerStats = () => {};
         c.compiler = compiler as {} as webpack.Compiler;
 
-        await c.shutUp(config);
+        await c.onShutUp(config);
 
         expect(typeof compiler.watch.mock.calls[0][1]).toEqual('function');
         expect(() => compiler.watch.mock.calls[0][1](null, stats)).not.toThrowError();

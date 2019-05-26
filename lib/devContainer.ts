@@ -565,7 +565,7 @@ export class DevContainerRuntime extends ContainerRuntime {
     }
   }
 
-  shutDown(config: DevContainerConfig) {
+  onShutDown(config: DevContainerConfig) {
     if (this.compilerWatching) {
       this.debug('[%o] close compiler watching', this.proc.pid);
 
@@ -573,11 +573,11 @@ export class DevContainerRuntime extends ContainerRuntime {
       this.compilerWatching = undefined;
     }
 
-    super.shutDown(config);
+    super.onShutDown(config);
   }
 
-  async shutUp(config: DevContainerConfig) {
-    await super.shutUp(config);
+  async onShutUp(config: DevContainerConfig) {
+    await super.onShutUp(config);
 
     if (!this.compiler) {
       throw new Error('Compiler is not available (container does not seem prepared)');

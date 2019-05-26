@@ -133,12 +133,12 @@ export class ContainerRuntime implements ContainerAPI {
 
     this.debug('[%o] container up', this.proc.pid);
 
-    await this.shutUp(config);
+    await this.onShutUp(config);
 
     exitHook(() => {
       this.debug('[%o] container down', this.proc.pid);
 
-      this.shutDown(config);
+      this.onShutDown(config);
     });
 
     return this;
@@ -330,13 +330,13 @@ export class ContainerRuntime implements ContainerAPI {
     }
   }
 
-  shutDown(config: ContainerConfig) {
+  onShutDown(config: ContainerConfig) {
     if (config && config.onDown) {
       config.onDown(this);
     }
   }
 
-  async shutUp(config: ContainerConfig) {
+  async onShutUp(config: ContainerConfig) {
     if (config && config.onUp) {
       config.onUp(this);
     }
