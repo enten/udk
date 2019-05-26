@@ -303,10 +303,11 @@ export function createLoggingCallback(
       return statsJson;
     };
 
+    const configName = stats.compilation.compiler.name;
     let statsTitle = '';
-    if (config.name) {
+    if (configName) {
       statsTitle = 'Name: '
-        + (options.colors ? terminal.bold(config.name) : config.name)
+        + (options.colors ? terminal.bold(configName) : configName)
         + (options.verbose ? '\n' : '');
     }
 
@@ -314,15 +315,19 @@ export function createLoggingCallback(
       ? stats.toString(statsToOptions)
       : statsToString(getStatsJson(), statsToOptions);
 
-    logger.info(statsTitle + statsString + '\n');
+    logger.info(statsTitle + statsString);
 
-    if (stats.hasWarnings()) {
-      logger.warn(statsWarningsToString(getStatsJson(), statsToOptions));
+    if (!options.verbose) {
+      if (stats.hasWarnings()) {
+        logger.warn(statsWarningsToString(getStatsJson(), statsToOptions));
+      }
+
+      if (stats.hasErrors()) {
+        logger.error(statsErrorsToString(getStatsJson(), statsToOptions));
+      }
     }
 
-    if (stats.hasErrors()) {
-      logger.error(statsErrorsToString(getStatsJson(), statsToOptions));
-    }
+    logger.info('');
   };
 
   return adaptWebpackLoggingCallback(logStats);

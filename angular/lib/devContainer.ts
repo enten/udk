@@ -264,9 +264,7 @@ export class NgContainer extends DevContainerRuntime {
     wpc.for('NgContainerInvalidPlugin').tap(
       this.compiler,
       'invalid',
-      (fileName: string) => {
-        this.logger.info(`File changed: ${fileName}`);
-
+      () => {
         if (this.firstCompilationFailed && !rebootCalled) {
           this.logger.warn('\nWARN: full rebuild...');
 
