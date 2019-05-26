@@ -15,7 +15,8 @@
 | `partialBrowserConfig` | string | | Partial webpack config for browser. |
 | `partialServerConfig` | string | | Partial webpack config for server. |
 | `fileReplacements` | | | Replace files with other files in browser and server. |
-| `deleteOutputPath` | boolean | false | Delete the output path before building |
+| `deleteOutputPath` | boolean | false | Delete the output path before building. |
+| `fileLoaderEmitFile` | boolean | false | File loader emit file. |
 | `verbose` | boolean | false | Adds more details to output logging. |
 
 ### Example
@@ -23,7 +24,7 @@
 #### Run universal build
 
 ```
-ng run angular:udk
+ng run app:udk
 ```
 
 #### angular.json
@@ -34,7 +35,7 @@ ng run angular:udk
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "angular": {
+    "app": {
       "root": "",
       "projectType": "application",
       "prefix": "app",
@@ -64,13 +65,13 @@ ng run angular:udk
 +       "udk": {
 +         "builder": "udk:udk-builder",
 +         "options": {
-+           "browserTarget": "angular:build",
-+           "serverTarget": "angular:server"
++           "browserTarget": "app:build",
++           "serverTarget": "app:server"
 +         },
 +         "configurations": {
 +           "production": {
-+             "browserTarget": "angular:build:production",
-+             "serverTarget": "angular:server:production",
++             "browserTarget": "app:build:production",
++             "serverTarget": "app:server:production",
 +             "verbose": true
 +           }
 +         }
@@ -89,7 +90,7 @@ Run a [dev container](../docs/dev-container.md) throught [angular-cli](https://g
 ### Usage
 
 ```shell
-npx ng-udkc --project <udk-target>
+npx ng-udkc [--project <udk-target>]
 ```
 
 ### Example
@@ -97,26 +98,5 @@ npx ng-udkc --project <udk-target>
 #### Run dev container
 
 ```shell
-npx ng-udkc --config
-```
-
-#### udk.container.js
-
-```js
-module.exports = {
-  context: __dirname,
-  angularProject: 'angular:udk',
-  hmr: true,
-  metafiles: [
-    __filename,
-    'angular.json',
-    'package.json',
-    'src/tsconfig.app.json',
-    'src/tsconfig.browser.json',
-    'src/tsconfig.server.json',
-    'src/index.html',
-    'src/main.server.ts',
-    'tsconfg.json'
-  ],
-};
+npx ng-udkc --project app:udk
 ```
