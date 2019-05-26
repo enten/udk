@@ -31,6 +31,11 @@
       },
       "default": []
     },
+    "fileLoaderEmitFile": {
+      "type": "boolean",
+      "description": "File loader emit file.",
+      "default": false
+    },
     "deleteOutputPath": {
       "type": "boolean",
       "description": "Delete the output path before building.",

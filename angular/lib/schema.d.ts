@@ -30,10 +30,14 @@ export interface BuildUdkSchema {
    */
   fileReplacements?: FileReplacement[];
   /**
+   * File loader emit file
+   */
+  fileLoaderEmitFile?: boolean;
+  /**
    * Delete the output path before building.
    */
   deleteOutputPath?: boolean;
-    /**
+  /**
    * Adds more details to output logging.
    */
   verbose: boolean;

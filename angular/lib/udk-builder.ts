@@ -2,509 +2,354 @@
 
 // tslint:disable:no-global-tslint-disable no-implicit-dependencies
 
+import * as fs from 'fs';
+import * as path from 'path';
+
+import { BuilderContext, createBuilder, targetFromTargetString } from '@angular-devkit/architect';
+import { ExecutionTransformer, FileReplacement } from '@angular-devkit/build-angular';
+
+import {
+  ArchitectPlugin,
+  WebpackFactory,
+  WebpackLoggingCallback,
+} from '@angular-devkit/build-webpack';
+
 import {
   Path,
+  experimental,
   getSystemPath,
+  join,
+  json,
   normalize,
   resolve,
+  schema,
   virtualFs,
 } from '@angular-devkit/core';
-import * as ngTerminalCaps from '@angular-devkit/core/src/terminal/caps';
+import { NodeJsSyncHost } from '@angular-devkit/core/node';
 
-export const terminalCaps = ngTerminalCaps.getCapabilities
-  ? ngTerminalCaps.getCapabilities(process.stdout)
-  : (ngTerminalCaps as {} as { stdout: ngTerminalCaps.StreamCapabilities }).stdout;
+import { Observable, from, of } from 'rxjs';
+import { catchError, concatMap, mapTo, switchMap } from 'rxjs/operators';
 
-import {
-  Builder,
-  BuilderConfiguration,
-  BuilderContext,
-} from '@angular-devkit/architect';
+import { ScriptTarget } from 'typescript';
 
-import {
-  BrowserBuilder,
-  ServerBuilder,
-} from '@angular-devkit/build-angular';
-import {
-  AssetPattern,
-  AssetPatternClass,
-  Schema as BrowserBuilderSchema,
-} from '@angular-devkit/build-angular/src/browser/schema';
-import { BuildWebpackServerSchema } from '@angular-devkit/build-angular/src/server/schema';
-
-import {
-  NormalizedBrowserBuilderSchema,
-  NormalizedFileReplacement,
-} from '@angular-devkit/build-angular/src/utils';
-const buildAngularUtils = require('@angular-devkit/build-angular/src/utils');
-
-import {
-  statsErrorsToString,
-  statsToString,
-  statsWarningsToString,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/stats';
-
-import rimraf = require('rimraf');
+import webpack = require('webpack');
 import webpackMerge = require('webpack-merge');
 
+import udk = require('../../lib/index');
+
 import {
-  Observable,
-  from as fromPromise,
-  of as observableOf,
-  zip,
-} from 'rxjs';
-import { concatMap, map } from 'rxjs/operators';
+  BrowserBuilderSchema,
+  ServerBuilderSchema,
+  UdkBuilderOutput,
+  Version,
+  adaptWebpackLoggingCallback,
+  applyPartialWebpackConfig,
+  augmentAppWithServiceWorker,
+  buildBrowserWebpackConfigs,
+  buildServerWebpackConfig,
+  createLoggingCallback,
+  createUniversalBuilderOutput,
+  createWebpackUniversalConfig,
+  deleteConfigOutputPath,
+  getProjectName,
+  isEs5SupportNeeded,
+  isTerminalColorsEnabled,
+  readTsconfig,
+  writeIndexHtml,
+} from './ng-devkit';
+import { BuildUdkSchema } from './schema';
 
-import * as fs from 'fs';
-import udk = require('udk');
-import * as webpack from 'webpack';
 
-// tslint:disable-next-line:max-line-length
-import * as webpackConfigsUtils from '@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/utils';
+export function buildUniversal(
+  options: BuildUdkSchema,
+  context: BuilderContext,
+  transforms: {
+    logging?: WebpackLoggingCallback;
+    webpackConfiguration?: ExecutionTransformer<webpack.Configuration>;
+    webpackFactory?: WebpackFactory;
+  } = {},
+) {
+  // Check Angular version.
+  Version.assertCompatibleAngularVersion(context.workspaceRoot);
 
-import { NG_DEVKIT_0_12 } from './versions';
+  const registry = new schema.CoreSchemaRegistry();
+  registry.addPostTransform(schema.transforms.addUndefinedDefaults);
 
-// support @angular-devkit/build-angular v0.7.0 (e5d68c19)
-let getWebpackStatsConfig: (verbose?: boolean) => {
-  colors: boolean;
-  hash: boolean;
-  timings: boolean;
-  chunks: boolean;
-  chunkModules: boolean;
-  children: boolean;
-  modules: boolean;
-  reasons: boolean;
-  warnings: boolean;
-  errors: boolean;
-  assets: boolean;
-  version: boolean;
-  errorDetails: boolean;
-  moduleTrace: boolean;
-};
+  const host = new NodeJsSyncHost();
+  let projectRoot: Path;
 
-if (!(webpackConfigsUtils as any).getWebpackStatsConfig) { // tslint:disable-line:no-any
-  // tslint:disable-next-line:max-line-length
-  getWebpackStatsConfig = require('@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs/stats').getWebpackStatsConfig;
+  const initialize = async () => {
+    const workspace = await experimental.workspace.Workspace.fromPath(
+      host,
+      normalize(context.workspaceRoot),
+      registry,
+    );
+
+    const projectName = getProjectName(context, workspace);
+
+    if (!projectName) {
+      throw new Error('Must either have a target from the context or a default project.');
+    }
+
+    projectRoot = resolve(
+      normalize(context.workspaceRoot),
+      normalize(workspace.getProject(projectName).root),
+    );
+
+    const workspaceRoot = getSystemPath(normalize(context.workspaceRoot));
+    const browserTarget = targetFromTargetString(options.browserTarget);
+    const browserOptions = await context.getTargetOptions(browserTarget);
+    const tsConfigPath = path.resolve(
+      workspaceRoot,
+      (browserOptions as {} as BrowserBuilderSchema).tsConfig,
+    );
+    const tsConfig = readTsconfig(tsConfigPath);
+
+    if (
+      isEs5SupportNeeded(projectRoot)
+      && tsConfig.options.target !== ScriptTarget.ES5
+      && tsConfig.options.target !== ScriptTarget.ES2015
+    ) {
+      context.logger.warn(
+        'WARNING: Using differential loading with targets ES5 and ES2016 or higher may'
+        + '\ncause problems. Browsers with support for ES2015 will load the ES2016+ scripts'
+        + '\nreferenced with script[type="module"] but they may not support ES2016+ syntax.',
+      );
+    }
+
+    return buildUniversalConfig(options, context, host, true, transforms.webpackConfiguration);
+  };
+
+  return from(initialize()).pipe(
+    switchMap(({ browserOptions, config }) => runMultiCompiler(
+      options,
+      browserOptions,
+      projectRoot,
+      context,
+      host,
+      config,
+      transforms,
+    )),
+  );
 }
 
-// support @angular-devkit/build-angular v0.7.0-rc.2
-const {
-  addFileReplacements,
-  normalizeAssetPatterns,
-  normalizeFileReplacements,
-  normalizeOptimization,
-  normalizeSourceMaps,
-} = buildAngularUtils as any; // tslint:disable-line:no-any
-
-function supportFileReplacement(
-  options: { fileReplacements: FileReplacement[] },
-  root: Path,
-  host: virtualFs.Host,
-  fileReplacements: FileReplacement[],
-): Observable<void> {
-  // <= v0.7.0-rc.1
-  if (addFileReplacements) {
-    options.fileReplacements = fileReplacements;
-
-    // Note: This method changes the file replacements in host.
-    return addFileReplacements(root, host, fileReplacements);
+export async function buildUniversalConfig(
+  options: BuildUdkSchema,
+  context: BuilderContext,
+  host: virtualFs.Host<fs.Stats>,
+  supportDifferentialLoading: boolean,
+  webpackConfigurationTransform?: ExecutionTransformer<webpack.Configuration>,
+): Promise<{
+  browserOptions: BrowserBuilderSchema,
+  serverOptions: ServerBuilderSchema,
+  config: webpack.Configuration[];
+}> {
+  if (options.main) {
+    context.logger.warn('--');
+    context.logger.warn('[udk] WARNING! the udk builder option `main` is temporary disabled');
+    context.logger.warn('[udk] The `serverTarget.main` option is use as the main server entrypoint'); // tslint:disable-line:max-line-length
+    context.logger.warn('[udk] Your server entry point probably need a refactoring');
+    context.logger.warn('[udk] Check for boilerplate example: https://github.com/enten/angular-universal'); // tslint:disable-line:max-line-length
+    context.logger.warn('--');
   }
 
-  // >= angular/cli v7.2 (>= angular-devkit/build-angular v0.12)
-  if (NG_DEVKIT_0_12) {
-    host = new virtualFs.SyncDelegateHost(host) as {} as virtualFs.Host;
-  }
+  const overrides = {
+    deleteOutputPath: !!options.deleteOutputPath,
+    verbose: !!options.verbose,
+  };
 
-  let normalizedFileReplacements = normalizeFileReplacements(
-    fileReplacements,
+  const browserTarget = targetFromTargetString(options.browserTarget);
+  const browserName = await context.getBuilderNameForTarget(browserTarget);
+  const browserOptionsRaw = await context.getTargetOptions(browserTarget);
+  const browserOptions = await context.validateOptions<json.JsonObject & BrowserBuilderSchema>(
+    { ...browserOptionsRaw, ...overrides },
+    browserName,
+  );
+
+  const serverTarget = targetFromTargetString(options.serverTarget);
+  const serverName = await context.getBuilderNameForTarget(serverTarget);
+  const serverOptionsRaw = await context.getTargetOptions(serverTarget);
+  const serverOptions = await context.validateOptions<json.JsonObject & ServerBuilderSchema>(
+    { ...serverOptionsRaw, ...overrides },
+    serverName,
+  );
+
+  // builders fileReplacements must be able to be merged with udk fileReplacements
+  browserOptions.fileReplacements = ([] as FileReplacement[]).concat(
+    browserOptions.fileReplacements || [],
+    options.fileReplacements || [],
+  );
+  serverOptions.fileReplacements = ([] as FileReplacement[]).concat(
+    serverOptions.fileReplacements || [],
+    options.fileReplacements || [],
+  );
+
+  const browserConfigs = await buildBrowserWebpackConfigs(
+    browserOptions,
+    context,
     host,
-    root,
-  ) as Observable<NormalizedFileReplacement[]>;
+    supportDifferentialLoading,
+  );
 
-  // >= v0.12.0
-  if (Array.isArray(normalizedFileReplacements)) {
-    normalizedFileReplacements = observableOf(
-      normalizedFileReplacements as NormalizedFileReplacement[],
+  const serverConfig: webpack.Configuration = await buildServerWebpackConfig(
+    serverOptions,
+    context,
+    !!options.fileLoaderEmitFile,
+  );
+
+  const browserConfigsTransformed: webpack.Configuration[] = [];
+  let serverConfigTransformed: webpack.Configuration;
+
+  for (const browserConfig of browserConfigs) {
+    browserConfigsTransformed.push(
+      await applyPartialWebpackConfig(context, browserConfig, [
+        webpackConfigurationTransform,
+        options.partialBrowserConfig,
+      ]).toPromise(),
     );
   }
 
-  return normalizedFileReplacements.pipe(
-    map((fileReplacements: FileReplacement[]) => {
-      options.fileReplacements = fileReplacements;
-    }),
+  serverConfigTransformed = await applyPartialWebpackConfig(context, serverConfig, [
+    webpackConfigurationTransform,
+    options.partialServerConfig,
+  ]).toPromise();
+
+  const config = createWebpackUniversalConfig(
+    serverConfigTransformed,
+    browserConfigs,
   );
+
+  return {
+    browserOptions,
+    serverOptions,
+    config,
+  };
 }
 
-// support @angular-devkit/build-angular v0.12.0
-function supportAssetPatterns(
-  options: { assets: AssetPattern[] },
-  root: Path,
+
+function runMultiCompiler(
+  options: BuildUdkSchema,
+  browserOptions: BrowserBuilderSchema,
   projectRoot: Path,
-  host: virtualFs.Host,
-  assetPatterns: AssetPattern[],
-  maybeSourceRoot: Path | undefined,
-): Observable<void> {
-  // >= angular/cli v7.2 (>= angular-devkit/build-angular v0.12)
-  if (NG_DEVKIT_0_12) {
-    host = new virtualFs.SyncDelegateHost(host) as {} as virtualFs.Host;
-  }
+  context: BuilderContext,
+  host: virtualFs.Host<fs.Stats>,
+  multiConfig: webpack.Configuration[],
+  transforms: {
+    logging?: WebpackLoggingCallback;
+    webpackFactory?: WebpackFactory;
+  } = {},
+): Observable<UdkBuilderOutput> {
+  const root = normalize(context.workspaceRoot);
 
-  let normalizedAssetPatterns = (
-    options.assets
-      ? normalizeAssetPatterns(assetPatterns, host, root, projectRoot, maybeSourceRoot)
-      : observableOf(null)
-  ) as Observable<AssetPatternClass[]>;
-
-  // >= v0.12.0
-  if (Array.isArray(normalizedAssetPatterns)) {
-    normalizedAssetPatterns = observableOf(normalizedAssetPatterns as AssetPatternClass[]);
-  }
-
-  return normalizedAssetPatterns.pipe(
-    // Replace the assets in options with the normalized version.
-    map(assetPatternObjects => {
-      if (assetPatternObjects) {
-        options.assets = assetPatternObjects;
-      }
-    }),
-  );
-}
-
-import { BuildUdkSchema, FileReplacement } from './schema';
-
-export type BuildWebpackSchema = BrowserBuilderSchema | BuildWebpackServerSchema;
-
-export interface BuilderStatic<Builder> {
-  new(context: BuilderContext): Builder;
-}
-
-export default class UdkBuilder implements Builder<BuildUdkSchema> {
-  constructor(public context: BuilderContext) { }
-
-  run(builderConfig: BuilderConfiguration<BuildUdkSchema>) {
-    let builderConfigs: (BuilderConfiguration<BrowserBuilderSchema | BuildWebpackServerSchema>)[];
-    let webpackConfigs: webpack.Configuration[];
-
-    return this.buildWebpackConfig(builderConfig.options).pipe(
-      concatMap((configs) => new Observable<{ success: boolean }>(obs => {
-        builderConfigs = configs.builderConfigs;
-        webpackConfigs = configs.webpackConfigs;
-
-        const multiConfig = webpackConfigs;
-
-        if (builderConfig.options.deleteOutputPath) {
-          this._deleteOutputPath(multiConfig);
-        }
-
-        try {
-          const webpackCompiler = udk(multiConfig) as webpack.MultiCompiler;
-
-          webpackCompiler.run((err, stats) => {
-            if (err) {
-              return obs.error(err);
-            }
-
-            this._printStats(stats, builderConfig.options.verbose);
-
-            obs.next({ success: !stats.hasErrors() });
-            obs.complete();
-          });
-        } catch (err) {
-          if (err) {
-            this.context.logger.error(
-              '\nAn error occured during the build:\n' + ((err && err.stack) || err));
-          }
-          throw err;
-        }
-      })),
-      concatMap(buildEvent => {
-        // browser builder
-        const builderConfig = builderConfigs[0] as BuilderConfiguration<BrowserBuilderSchema>;
-        const { options } = builderConfig;
-
-        // tslint:disable-next-line:no-any
-        if (buildEvent.success && !options.watch && options.serviceWorker) {
-          const { root } = this.context.workspace;
-          const projectRoot = resolve(root, builderConfig.root);
-
-          // tslint:disable-next-line:max-line-length
-          const { augmentAppWithServiceWorker } = require('@angular-devkit/build-angular/src/angular-cli-files/utilities/service-worker');
-
-          return new Observable<{ success: boolean }>(obs => {
-            augmentAppWithServiceWorker(
-              this.context.host,
-              root,
-              projectRoot,
-              resolve(root, normalize(options.outputPath)),
-              options.baseHref || '/',
-              options.ngswConfigPath,
-            ).then(
-              () => {
-                obs.next({ success: true });
-                obs.complete();
-              },
-              (err: Error) => {
-                obs.error(err);
-              },
-            );
-          });
-        } else {
-          return observableOf(buildEvent);
-        }
-      }),
-    );
-  }
-
-  buildWebpackConfig(options: BuildUdkSchema): Observable<{
-    builderConfigs: (BuilderConfiguration<BrowserBuilderSchema | BuildWebpackServerSchema>)[],
-    webpackConfigs: webpack.Configuration[],
-  }> {
-    const {
-      main,
-      browserTarget,
-      serverTarget,
-      partialBrowserConfig,
-      partialServerConfig,
-      fileReplacements,
-    } = options;
-
-    if (main) {
-      console.warn('--');
-      console.warn('[udk] WARNING! the udk builder option `main` is temporary disabled');
-      console.warn('[udk] The `serverTarget.main` option is use as the main server entrypoint');
-      console.warn('[udk] Your server entry point probably need a refactoring');
-      console.warn('[udk] Check for boilerplate example: https://github.com/enten/angular-universal'); // tslint:disable-line:max-line-length
-      console.warn('--');
-    }
-
-    return zip(
-      this._getWebpackConfigForBuilder(
-        BrowserBuilder,
-        browserTarget,
-        partialBrowserConfig,
-        fileReplacements,
-      ),
-      this._getWebpackConfigForBuilder(
-        ServerBuilder,
-        serverTarget,
-        partialServerConfig,
-        fileReplacements,
-      ),
-    ).pipe(
-      map(configs => {
-        const builderConfigs = configs.map(({ builderConfig }) => builderConfig);
-        const webpackConfigs = configs.map(({ webpackConfig }) => webpackConfig);
-
-        const [
-          browserConfig,
-          serverConfig,
-        ] = webpackConfigs;
-
-        if (!browserConfig.name) {
-          browserConfig.name = 'browser';
-        }
-
-        if (!webpackConfigs[1].name) {
-          serverConfig.name = 'server';
-        }
-
-        // set browserConfig as serverConfig's dependency
-        (serverConfig as {} as { dependencies: string[] }).dependencies = [ browserConfig.name ];
-
-        return {
-          builderConfigs,
-          webpackConfigs,
-        };
-      }),
-    );
-  }
-
-  _applyPartialWebpackConfig(
-    webpackConfig: webpack.Configuration,
-    partialWebpackConfig$: any, // tslint:disable-line:no-any
-  ): Observable<webpack.Configuration> {
-    if (partialWebpackConfig$ && typeof partialWebpackConfig$.then === 'function') {
-      partialWebpackConfig$ = fromPromise(partialWebpackConfig$);
-    } else if (!partialWebpackConfig$ || typeof partialWebpackConfig$.subscribe !== 'function') {
-      partialWebpackConfig$ = observableOf(partialWebpackConfig$);
-    }
-
-    return partialWebpackConfig$.pipe(
-      concatMap((partialWebpackConfig) => {
-        if (typeof partialWebpackConfig === 'string') {
-          const partialWebpackConfigPath = getSystemPath(resolve(
-            this.context.workspace.root,
-            normalize(partialWebpackConfig),
-          ));
-
-          partialWebpackConfig = require(partialWebpackConfigPath);
-        }
-
-        if (typeof partialWebpackConfig === 'function') {
-          return this._applyPartialWebpackConfig(
-            webpackConfig,
-            (partialWebpackConfig as any)(webpackConfig), // tslint:disable-line:no-any
-          );
-        }
-
-        if (typeof partialWebpackConfig === 'object') {
-          webpackConfig = webpackMerge(webpackConfig, partialWebpackConfig);
-        }
-
-        return observableOf(webpackConfig);
-      }),
-    );
-  }
-
-  _getBuilderConfig(projectTarget: string) {
-    const architect = this.context.architect;
-    const [ project, target, configuration ] = projectTarget.split(':');
-    // Override browser build watch setting.
-    // const overrides = { watch: options.watch };
-    const targetSpec = { project, target, configuration/*, overrides*/ };
-    const builderConfig = architect.getBuilderConfiguration<BuildWebpackSchema>(targetSpec);
-
-    return architect.getBuilderDescription(builderConfig).pipe(
-      concatMap(builderDescription => {
-        return architect.validateBuilderOptions(builderConfig, builderDescription);
-      }),
-    );
-  }
-
-  _deleteOutputPath(webpackConfig: webpack.Configuration | webpack.Configuration[]) {
-    if (Array.isArray(webpackConfig)) {
-      return webpackConfig.forEach((c) => {
-        this._deleteOutputPath(c);
+  const createWebpack = (
+    transforms.webpackFactory || (config => of(udk(config)))
+  ) as (config: webpack.Configuration[]) => Observable<webpack.MultiCompiler>;
+  const logStats: WebpackLoggingCallback = transforms.logging
+    ? adaptWebpackLoggingCallback(transforms.logging)
+    : createLoggingCallback(context.logger, {
+        verbose: options.verbose,
+        colors: isTerminalColorsEnabled(),
       });
-    }
 
-    if (webpackConfig.output && webpackConfig.output.path) {
-      rimraf.sync(webpackConfig.output.path);
-    }
-  }
-
-  _getWebpackConfigForBuilder(
-    BuilderCtor: BuilderStatic<BrowserBuilder | ServerBuilder>,
-    projectTarget: string,
-    partialWebpackConfig: any, // tslint:disable-line:no-any
-    fileReplacements: FileReplacement[] = [],
-  ): Observable<{
-    builderConfig: BuilderConfiguration<BrowserBuilderSchema | BuildWebpackServerSchema>,
-    webpackConfig: webpack.Configuration,
-  }> {
-    const { root } = this.context.workspace;
-    const host = new virtualFs.AliasHost(this.context.host);
-
-    let options: BuildWebpackSchema;
-    let projectRoot: Path;
-    let builderConfig: BuilderConfiguration<BuildWebpackSchema>;
-
-    return this._getBuilderConfig(projectTarget).pipe(
-      concatMap((_builderConfig) => {
-        builderConfig = _builderConfig;
-
-        options = builderConfig.options;
-        projectRoot = resolve(root, builderConfig.root);
-        // browser or server fileReplacements must be able to be override by udk fileReplacements
-        fileReplacements = ([] as FileReplacement[]).concat(
-          options.fileReplacements || [],
-          fileReplacements,
-        );
-
-        // compat with angular-cli commit 4f8a5b7a changes
-        if (typeof normalizeOptimization === 'function') {
-          options.optimization = normalizeOptimization(options.optimization);
-        }
-
-        // compat with angular-cli commit 8516d682 changes
-        if (typeof normalizeSourceMaps === 'function') {
-          options.sourceMap = normalizeSourceMaps(options.sourceMap);
-        }
-
-        return observableOf(null);
-      }),
-      concatMap(() => supportFileReplacement(
-        options as NormalizedBrowserBuilderSchema,
-        root,
+  const initialize: () => Promise<webpack.MultiCompiler> = async () => {
+    if (options.deleteOutputPath) {
+      await Promise.all(multiConfig.map(config => deleteConfigOutputPath(
+        context.workspaceRoot,
         host,
-        fileReplacements,
-      )),
-      concatMap(() => supportAssetPatterns(
-        (options as NormalizedBrowserBuilderSchema),
+        config,
+      )));
+    }
+
+    multiConfig = multiConfig.map(c => webpackMerge(c, {
+      plugins: [
+        new ArchitectPlugin(context),
+      ],
+    }));
+
+    return createWebpack(multiConfig).toPromise();
+  };
+
+  return from(initialize()).pipe(
+    switchMap(webpackCompiler => new Observable<UdkBuilderOutput>(obs => {
+      const callback: webpack.Compiler.Handler = (err, multiStats) => {
+        if (err) {
+          return obs.error(err);
+        }
+
+        logStats(multiStats, multiConfig as {} as webpack.Configuration);
+
+        const builderOutput = createUniversalBuilderOutput(multiStats, multiConfig);
+
+        obs.next(builderOutput);
+        obs.complete();
+      };
+
+      try {
+        webpackCompiler.run(callback);
+      } catch (err) {
+        if (err) {
+          context.logger.error(`\nAn error occurred during the build:\n${err && err.stack || err}`);
+        }
+
+        obs.next({ success: false } as UdkBuilderOutput);
+        obs.complete();
+      }
+    })),
+    concatMap((builderOutput: UdkBuilderOutput) => {
+      const withDifferentialLoading = multiConfig.length > 2;
+
+      if (!builderOutput.success || !browserOptions.index || !withDifferentialLoading) {
+        return of(builderOutput);
+      }
+
+      // For differential loading, the builder needs to created the index.html by itself
+      // without using a webpack plugin.
+      return writeIndexHtml({
+        host,
+        outputPath: join(root, browserOptions.outputPath),
+        indexPath: join(root, browserOptions.index),
+        ES5BuildFiles: builderOutput.browserES5EmittedFiles,
+        ES2015BuildFiles: builderOutput.browserES6EmittedFiles,
+        baseHref: browserOptions.baseHref,
+        deployUrl: browserOptions.deployUrl,
+        sri: browserOptions.subresourceIntegrity,
+        scripts: browserOptions.scripts,
+        styles: browserOptions.styles,
+      }).pipe(
+        mapTo(builderOutput),
+        catchError(err => {
+          context.logger.error(
+            `\nAn error occurred during write index:\n${err && err.stack || err}`,
+          );
+
+          return of({ ...builderOutput, success: false } as UdkBuilderOutput);
+        }),
+      );
+    }),
+    concatMap(builderOutput => {
+      if (!builderOutput.success || !browserOptions.serviceWorker) {
+        return of(builderOutput);
+      }
+
+      return from(augmentAppWithServiceWorker(
+        host,
         root,
         projectRoot,
-        host,
-        (options as NormalizedBrowserBuilderSchema).assets,
-        builderConfig.sourceRoot,
-      )),
-      concatMap(() => {
-        const builder = new BuilderCtor(this.context);
-        let webpackConfig: webpack.Configuration;
+        resolve(root, normalize(browserOptions.outputPath)),
+        browserOptions.baseHref || '/',
+        browserOptions.ngswConfigPath,
+      )).pipe(
+        mapTo(builderOutput),
+        catchError(err => {
+          context.logger.error(
+            `\nAn error occurred during write service worker:\n${err && err.stack || err}`,
+          );
 
-        webpackConfig = (builder as BrowserBuilder).buildWebpackConfig(
-          root,
-          projectRoot,
-          host as virtualFs.Host<fs.Stats>,
-          options as NormalizedBrowserBuilderSchema,
-        );
-
-        // fix: disable server builder to emit assets
-        if (BuilderCtor === ServerBuilder && webpackConfig.module && webpackConfig.module.rules) {
-          const fileLoader = webpackConfig.module.rules.find(rule => rule.loader === 'file-loader');
-
-          if (fileLoader) {
-            if (fileLoader.options) {
-              // tslint:disable-next-line:no-any
-              (fileLoader.options as { [k: string]: any }).emitFile = false;
-            } else {
-              fileLoader.options = { emitFile: false };
-            }
-          }
-        }
-
-        return this._applyPartialWebpackConfig(webpackConfig, partialWebpackConfig);
-      }),
-      map(webpackConfig => ({
-        builderConfig,
-        webpackConfig,
-      })),
-    );
-  }
-
-  _printStats(stats: webpack.Stats, verbose?: boolean) {
-    if (Array.isArray((stats as any).stats)) { // tslint:disable-line:no-any
-      return (stats as any).stats.forEach((s: webpack.Stats) => { // tslint:disable-line:no-any
-        this._printStats(s, verbose);
-      });
-    }
-
-    const statsConfig = getWebpackStatsConfig(verbose);
-    statsConfig.colors = terminalCaps.colors;
-
-    const compilationName = (stats.compilation as {} as { name: string }).name;
-    const statsTitle = 'Child: ' + compilationName + (verbose ? '\n' : '');
-
-    if (verbose) {
-      const jsonString = stats.toString(statsConfig)
-        .split('\n')
-        .map(line => '  ' + line)
-        .join('\n');
-
-      this.context.logger.info(statsTitle + jsonString);
-    } else {
-      const json = stats.toJson(statsConfig);
-      const jsonString = statsToString(json, statsConfig)
-        .split('\n')
-        .map(line => '  ' + line)
-        .join('\n');
-
-      this.context.logger.info(statsTitle + jsonString);
-      if (stats.hasWarnings()) {
-        this.context.logger.warn(statsWarningsToString(json, statsConfig));
-      }
-      if (stats.hasErrors()) {
-        this.context.logger.error(statsErrorsToString(json, statsConfig));
-      }
-    }
-  }
+          return of({ ...builderOutput, success: false } as UdkBuilderOutput);
+        }),
+      );
+    }),
+  );
 }
+
+export default createBuilder<json.JsonObject & BuildUdkSchema, UdkBuilderOutput>(buildUniversal);
