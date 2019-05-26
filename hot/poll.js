@@ -26,18 +26,18 @@ if (module.hot) {
 						log("warning", "[HMR] Cannot apply update.");
 						log("warning", "[HMR] " + (err.stack || err.message));
 						log("warning", "[HMR] You need to restart the application!");
+						// <udk patch>
+						if (process.send) {
+							log("warning", "[udk] restarting the application...");
+							process.send({ action: 'run' });
+						}
+						// </udk patch>
 					} else {
 						log(
 							"warning",
 							"[HMR] Update failed: " + (err.stack || err.message)
 						);
 					}
-					// <udk patch>
-					if (process.send) {
-						log("warning", "[udk] restarting the application...");
-						process.send({ action: 'run' });
-					}
-					// </udk patch>
 				});
 		}
 	};
