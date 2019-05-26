@@ -651,7 +651,7 @@ export class DevContainerRuntime extends ContainerRuntime {
     if (!config.autoRestart) {
       ensureConfigHasPlugin(nodeConfigs, HMRPlugin, [ hmr.pluginNode ]);
 
-      ensureConfigHasEntry(nodeConfigs, 'webpack/hot/poll', hmr.hotPollInterval, {
+      ensureConfigHasEntry(nodeConfigs, 'udk/hot/poll', hmr.hotPollInterval, {
         entriesFilter: hmr.entriesNode,
         topModuleEntries: config.topModuleEntries,
       });
