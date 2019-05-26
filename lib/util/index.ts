@@ -5,6 +5,7 @@ export * from './decorateEventListener';
 export * from './decorateRequestListener';
 export * from './ensureConfigHasEntry';
 export * from './ensureConfigHasPlugin';
+export * from './findUp';
 export * from './existsModule';
 export * from './getEntryOutputPathFromStats';
 export * from './getOutputPublicPath';
