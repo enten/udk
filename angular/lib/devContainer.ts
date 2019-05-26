@@ -15,6 +15,7 @@ import { experimental, json, logging, normalize, schema, virtualFs } from '@angu
 import { NodeJsSyncHost, createConsoleLogger } from '@angular-devkit/core/node';
 
 import webpack = require('webpack');
+import wpc = require('webpack-plugin-compat');
 
 import {
   DevContainerAPI,
@@ -55,6 +56,9 @@ export const ANUGULAR_CONFIG_NAMES = [
 
 export class NgContainer extends DevContainerRuntime {
   args: NgContainerArgs;
+
+  firstCompilation = true;
+  firstCompilationFailed = false;
 
   webpackLogging: WebpackLoggingCallback;
 
@@ -242,11 +246,50 @@ export class NgContainer extends DevContainerRuntime {
     return multiConfig;
   }
 
+  async onShutUp(config: DevContainerConfig) {
+    let rebootCalled = false;
+
+    wpc.for('NgContainerInvalidPlugin').tap(
+      this.compiler,
+      'done',
+      (stats: webpack.Stats) => {
+        if (this.firstCompilation && stats.hasErrors()) {
+          this.firstCompilationFailed = true;
+        }
+
+        this.firstCompilation = false;
+      },
+    );
+
+    wpc.for('NgContainerInvalidPlugin').tap(
+      this.compiler,
+      'invalid',
+      (fileName: string) => {
+        this.logger.info(`File changed: ${fileName}`);
+
+        if (this.firstCompilationFailed && !rebootCalled) {
+          this.logger.warn('\nWARN: full rebuild...');
+
+          rebootCalled = true;
+          this.run();
+        }
+      },
+    );
+
+    await super.onShutUp(config);
+  }
+
   printCompilerStats(
     _config: NgContainerConfig,
     multiStats: webpack.Stats,
   ) {
     this.webpackLogging(multiStats, this.webpackConfig as webpack.Configuration);
+
+    if (this.firstCompilationFailed) {
+      this.logger.warn(
+        '\nWARN: First compilation has failed.\nNext compilation needs full rebuild',
+      );
+    }
   }
 
   loadConfig(args: NgContainerArgs) {
