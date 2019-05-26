@@ -17,6 +17,7 @@ import {
 
 jest.mock('child_process', () => ({
   fork: jest.fn(() => ({
+    on: jest.fn(),
     once: jest.fn(),
   })),
 }));
@@ -183,7 +184,7 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
     });
 
     describe('close', () => {
-      it('should throw when is called in child process', () => {
+      it('should send close action to parent in child process', () => {
         const c = new ContainerRuntime(ContainerRuntimePath, {
           cwd: () => '',
           argv: [],
@@ -191,7 +192,13 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
 
         c.isChild = true;
 
-        expect(() => c.close()).toThrowError('close() cannot be called in child process');
+        c.close();
+
+        c.proc.send = jest.fn();
+
+        c.close();
+
+        expect(c.proc.send).toBeCalledWith({ action: 'close' });
       });
 
       it('should close watcher', () => {
@@ -240,7 +247,7 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
     });
 
     describe('run', () => {
-      it('should throw when is called in child process', () => {
+      it('should send run action to parent in child process', () => {
         const c = new ContainerRuntime(ContainerRuntimePath, {
           cwd: () => '',
           argv: [],
@@ -248,8 +255,45 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
 
         c.isChild = true;
 
-        expect(() => c.run())
-          .toThrowError('run() cannot be called in child process');
+        c.run();
+
+        c.proc.send = jest.fn();
+
+        c.run();
+
+        expect(c.proc.send).toBeCalledWith({ action: 'run' });
+      });
+
+      it('should parent process listen to child process messages', () => {
+        const c = new ContainerRuntime(ContainerRuntimePath, {
+          cwd: () => path.resolve(__dirname, '..', '..', 'e2e'),
+          argv: [],
+        } as {} as NodeJS.Process);
+
+        (c as any).debug = jest.fn(); // tslint:disable-line:no-any
+
+        c.run();
+
+        expect(c.child).toBeDefined();
+
+        const childOn = (c.child as {} as ChildProcess).on as jest.Mock;
+
+        expect(childOn).toBeCalled();
+        expect(childOn.mock.calls[0][0]).toBe('message');
+
+        const onMessage = childOn.mock.calls[0][1];
+
+        expect(typeof onMessage).toBe('function');
+
+        c.close = jest.fn();
+        c.run = jest.fn();
+
+        onMessage({ action: 'close' });
+        onMessage({ action: 'run' });
+        onMessage({ action: 'unknown' });
+
+        expect(c.close).toBeCalled();
+        expect(c.run).toBeCalled();
       });
 
       it('should create watcher and child', () => {

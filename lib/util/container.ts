@@ -146,7 +146,11 @@ export class ContainerRuntime implements ContainerAPI {
 
   close(callback?: () => void) {
     if (this.isChild) {
-      throw new Error('close() cannot be called in child process');
+      if (this.proc.send)  {
+        this.proc.send({ action: 'close' });
+      }
+
+      return;
     }
 
     this.debug('[%o] close container', this.proc.pid);
@@ -170,7 +174,11 @@ export class ContainerRuntime implements ContainerAPI {
 
   run(callback?: () => void) {
     if (this.isChild) {
-      throw new Error('run() cannot be called in child process');
+      if (this.proc.send)  {
+        this.proc.send({ action: 'run' });
+      }
+
+      return;
     }
 
     this.debug('[%o] run container', this.proc.pid);
@@ -228,6 +236,14 @@ export class ContainerRuntime implements ContainerAPI {
       const childPid = this.child && this.child.pid;
       this.debug('[%o] child %o exit with code %o', this.proc.pid, childPid, code);
       this.child = undefined;
+    });
+
+    this.child.on('message', (message: { action: string }) => {
+      if (message.action === 'close') {
+        this.close();
+      } else if (message.action === 'run') {
+        this.run();
+      }
     });
 
     this.child.once('error', err => {
