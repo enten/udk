@@ -10,7 +10,7 @@ if (environment.production) {
   enableProdMode();
 }
 
-function bootstrap (boot: () => Promise<NgModuleRef<any>>) {
+function bootstrap(boot: () => Promise<NgModuleRef<any>>) {
   if (module.hot) {
     return bootstrapWithHmr(boot);
   }
@@ -18,7 +18,7 @@ function bootstrap (boot: () => Promise<NgModuleRef<any>>) {
   return boot();
 }
 
-function bootstrapWithHmr (boot: () => Promise<NgModuleRef<any>>) {
+function bootstrapWithHmr(boot: () => Promise<NgModuleRef<any>>) {
   let ngModule: NgModuleRef<any>;
 
   module.hot.accept();
@@ -42,9 +42,9 @@ function bootstrapWithHmr (boot: () => Promise<NgModuleRef<any>>) {
   return booting;
 }
 
-function main () {
+function main() {
   bootstrap(() => platformBrowserDynamic().bootstrapModule(AppBrowserModule))
-    .then(ngModule => console.log('AppModule boostraped!'))
+    .then(ngModule => console.log('AppModule boostraped!', ngModule))
     .catch(console.error);
 }
 
