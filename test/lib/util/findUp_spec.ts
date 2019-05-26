@@ -6,11 +6,15 @@ import * as path from 'path';
 import { findUp } from '../../../lib/util/findUp';
 
 jest.mock('fs', () => ({
-  existsSync: jest.fn((p: string) => p === '/a/bar'),
+  existsSync: jest.fn((p: string) => p === require('path').normalize('/a/bar')),
 }));
 
 describe('udk/lib/util/findUp', () => {
   describe('findUp', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
     it('should return null if file name is not found', () => {
       expect(findUp('foo', '/a/b/c')).toBeNull();
     });
