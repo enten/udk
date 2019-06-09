@@ -3,6 +3,6 @@
   "name": "@architect/udk",
   "peerDependencies": {
     "@angular-devkit/build-angular": "~0.800.0",
-    "@angular/cli": "~8.0.0"
+    "@angular/cli": "~8.0.2"
   }
 }
