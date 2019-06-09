@@ -43,6 +43,7 @@ export interface NgContainerFactory extends DevContainerFactory {
 
 export interface NgContainerArgs extends DevContainerArgs {
   project?: string;
+  configuration?: string;
 }
 
 
@@ -199,7 +200,8 @@ export class NgContainer extends DevContainerRuntime {
       }
     }
 
-    const configuration = argsProjectTarget.configuration
+    const configuration = args.configuration
+      || argsProjectTarget.configuration
       || configProjectTarget.configuration
       || undefined;
 
@@ -291,14 +293,17 @@ export class NgContainer extends DevContainerRuntime {
   }
 
   loadConfig(args: NgContainerArgs) {
-    return super.loadConfig(args) as { config: NgContainerConfig, configPath?: string };
+    return super.loadConfig({
+      ...args,
+      config: undefined,
+    }) as { config: NgContainerConfig, configPath?: string };
   }
 
   parseProcessArgsOptions() {
     const opts = super.parseProcessArgsOptions();
 
-    opts.alias = { ...opts.alias, p: 'project' };
-    opts.string = ([] as string[]).concat(opts.string || [], 'project');
+    opts.alias = { ...opts.alias, p: 'project', c: 'configuration' };
+    opts.string = ([] as string[]).concat(opts.string || [], 'project', 'configuration');
 
     return opts;
   }

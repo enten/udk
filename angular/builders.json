@@ -5,6 +5,11 @@
       "implementation": "./lib/udk-builder",
       "schema": "./lib/udk-builder.schema.json",
       "description": "Build an universal angular application with udk."
+    },
+    "udk-runner": {
+      "implementation": "./lib/udk-runner",
+      "schema": "./lib/udk-runner.schema.json",
+      "description": "Run an universal angular application with udk."
     }
   }
 }
