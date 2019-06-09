@@ -59,7 +59,7 @@ export class NgContainer extends DevContainerRuntime {
   args: NgContainerArgs;
 
   firstCompilation = true;
-  firstCompilationFailed = false;
+  // firstCompilationFailed = false;
 
   webpackLogging: WebpackLoggingCallback;
 
@@ -249,32 +249,32 @@ export class NgContainer extends DevContainerRuntime {
   }
 
   async onShutUp(config: DevContainerConfig) {
-    let rebootCalled = false;
+    // let rebootCalled = false;
 
     wpc.for('NgContainerInvalidPlugin').tap(
       this.compiler,
       'done',
       (stats: webpack.Stats) => {
-        if (this.firstCompilation && stats.hasErrors()) {
-          this.firstCompilationFailed = true;
-        }
+        // if (this.firstCompilation && stats.hasErrors()) {
+        //   this.firstCompilationFailed = true;
+        // }
 
         this.firstCompilation = false;
       },
     );
 
-    wpc.for('NgContainerInvalidPlugin').tap(
-      this.compiler,
-      'invalid',
-      () => {
-        if (this.firstCompilationFailed && !rebootCalled) {
-          this.logger.warn('\nWARN: full rebuild...');
+    // wpc.for('NgContainerInvalidPlugin').tap(
+    //   this.compiler,
+    //   'invalid',
+    //   () => {
+    //     if (this.firstCompilationFailed && !rebootCalled) {
+    //       this.logger.warn('\nWARN: full rebuild...');
 
-          rebootCalled = true;
-          this.run();
-        }
-      },
-    );
+    //       rebootCalled = true;
+    //       this.run();
+    //     }
+    //   },
+    // );
 
     await super.onShutUp(config);
   }
@@ -285,11 +285,11 @@ export class NgContainer extends DevContainerRuntime {
   ) {
     this.webpackLogging(multiStats, this.webpackConfig as webpack.Configuration);
 
-    if (this.firstCompilationFailed) {
-      this.logger.warn(
-        '\nWARN: First compilation has failed.\nNext compilation needs full rebuild',
-      );
-    }
+    // if (this.firstCompilationFailed) {
+    //   this.logger.warn(
+    //     '\nWARN: First compilation has failed.\nNext compilation needs full rebuild',
+    //   );
+    // }
   }
 
   loadConfig(args: NgContainerArgs) {
