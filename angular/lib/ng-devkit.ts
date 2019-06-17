@@ -55,6 +55,7 @@ import webpack = require('webpack');
 import webpackMerge = require('webpack-merge');
 
 export {
+  WriteIndexHtmlOptions,
   writeIndexHtml,
 } from '@angular-devkit/build-angular/src/angular-cli-files/utilities/index-file/write-index-html';
 export {
@@ -68,7 +69,9 @@ export {
   Schema as BrowserBuilderSchema,
 } from '@angular-devkit/build-angular/src/browser/schema';
 export { Schema as ServerBuilderSchema } from '@angular-devkit/build-angular/src/server/schema';
-export { isEs5SupportNeeded } from '@angular-devkit/build-angular/src/utils/differential-loading';
+export {
+  BuildBrowserFeatures,
+} from '@angular-devkit/build-angular/src/utils/build-browser-features';
 export { Version } from '@angular-devkit/build-angular/src/utils/version';
 
 
@@ -84,6 +87,9 @@ export type UdkBuilderOutput = BuilderOutput & {
   success: boolean;
   browserES5EmittedFiles: UdkBuilderEmittedFile[];
   browserES6EmittedFiles: UdkBuilderEmittedFile[];
+  browserFiles: UdkBuilderEmittedFile[];
+  browserModuleFiles: UdkBuilderEmittedFile[];
+  browserNoModuleFiles: UdkBuilderEmittedFile[];
   serverEmittedFiles: UdkBuilderEmittedFile[];
 };
 
@@ -257,7 +263,7 @@ export async function buildServerWebpackConfig(
   const { config: configs } = await generateBrowserWebpackConfigFromContext(
     {
       ...options,
-      index: '',
+      // index: '',
       buildOptimizer: false,
       aot: true,
       platform: 'server',
@@ -342,6 +348,9 @@ export function createUniversalBuilderOutput(
     success: !!multiStats && !(multiStats as { hasErrors(): boolean }).hasErrors(),
     browserES5EmittedFiles: [],
     browserES6EmittedFiles: [],
+    browserFiles: [],
+    browserModuleFiles: [],
+    browserNoModuleFiles: [],
     serverEmittedFiles: [],
   };
 
@@ -368,7 +377,7 @@ export function createUniversalBuilderOutput(
     if (config.target === 'node') {
       result.serverEmittedFiles = getEmittedFiles(stats.compilation) as UdkBuilderEmittedFile[];
     // Collect browser es5 emitted files
-    } else if (!statsIndex) {
+    } else if (statsIndex === 0) {
       result.browserES5EmittedFiles = getEmittedFiles(stats.compilation) as UdkBuilderEmittedFile[];
     // Collect browser es6 emitted files
     } else if (statsIndex === 1) {
@@ -378,6 +387,19 @@ export function createUniversalBuilderOutput(
       throw new Error('BREAKING CHANGE DETECTED! Universal config must have 2 or 3 childs');
     }
   });
+
+  // note(enten): check url below to understand next if-else block
+  // tslint:disable-next-line: max-line-length
+  // https://github.com/angular/angular-cli/blob/v8.1.0-beta.2/packages/angular_devkit/build_angular/src/browser/index.ts#L240
+  if ((multiStats as { stats: webpack.Stats[] }).stats.length === 3) {
+    result.browserNoModuleFiles = result.browserES5EmittedFiles;
+    result.browserModuleFiles = result.browserES6EmittedFiles;
+    result.browserFiles = result.browserES6EmittedFiles.filter(x => x.extension === '.css');
+  } else {
+    const emittedFiles = result.browserES5EmittedFiles;
+    result.browserFiles = emittedFiles.filter(x => x.name !== 'polyfills-es5');
+    result.browserNoModuleFiles = emittedFiles.filter(x => x.name === 'polyfills-es5');
+  }
 
   return result;
 }

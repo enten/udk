@@ -98,8 +98,8 @@
     "yargs-parser": "^13.0.0"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "~0.800.2",
-    "@angular/cli": "~8.0.2",
+    "@angular-devkit/build-angular": "~0.801.0-beta.2",
+    "@angular/cli": "~8.1.0-beta.2",
     "@types/debug": "^4.1.2",
     "@types/jest": "^24.0.11",
     "@types/node": "^11.11.0",

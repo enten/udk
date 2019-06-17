@@ -6,12 +6,27 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
 
-import { Architect, BuilderContext, Target } from '@angular-devkit/architect';
+import {
+  Architect,
+  BuilderContext,
+  Target,
+  targetFromTargetString,
+} from '@angular-devkit/architect';
 import { WorkspaceNodeModulesArchitectHost } from '@angular-devkit/architect/node';
 
 import { WebpackLoggingCallback } from '@angular-devkit/build-webpack';
 
-import { experimental, json, logging, normalize, schema, virtualFs } from '@angular-devkit/core';
+import {
+  Path,
+  basename,
+  experimental,
+  join,
+  json,
+  logging,
+  normalize,
+  schema,
+  virtualFs,
+} from '@angular-devkit/core';
 import { NodeJsSyncHost, createConsoleLogger } from '@angular-devkit/core/node';
 
 import webpack = require('webpack');
@@ -24,7 +39,14 @@ import {
   DevContainerFactory,
   DevContainerRuntime,
 } from '../../lib/devContainer';
-import { createLoggingCallback, deleteConfigOutputPath, makeTargetSpecifier } from './ng-devkit';
+import {
+  BrowserBuilderSchema,
+  createLoggingCallback,
+  createUniversalBuilderOutput,
+  deleteConfigOutputPath,
+  makeTargetSpecifier,
+  writeIndexHtml,
+} from './ng-devkit';
 import { BuildUdkSchema } from './schema';
 import { buildUniversalConfig } from './udk-builder';
 
@@ -73,6 +95,10 @@ export class NgContainer extends DevContainerRuntime {
   host: virtualFs.Host<fs.Stats>;
   registry: schema.SchemaRegistry;
   workspace: experimental.workspace.Workspace;
+  browserIndexHtml: string | null = null;
+  browserIndexSourcePath: Path;
+  browserIndexOutputPath: Path;
+  browserOptions: BrowserBuilderSchema;
 
   constructor(readonly runtimePath: string, readonly proc: NodeJS.Process) {
     super(runtimePath, proc);
@@ -163,6 +189,21 @@ export class NgContainer extends DevContainerRuntime {
       },
     } as {} as BuilderContext;
 
+    const browserTarget = targetFromTargetString(this.builderOptions.browserTarget);
+    const browserOptionsRaw = await this.builderContext.getTargetOptions(browserTarget);
+
+    if (browserOptionsRaw.index) {
+      this.browserIndexHtml = browserOptionsRaw.index as string;
+      this.browserIndexSourcePath = join(normalize(this.workspace.root), this.browserIndexHtml);
+      this.browserIndexOutputPath = join(
+        normalize(this.workspace.root),
+        browserOptionsRaw.outputPath as string,
+        basename(normalize(this.browserIndexHtml)),
+      );
+    }
+
+    this.browserOptions = browserOptionsRaw as {} as BrowserBuilderSchema;
+
     await super.bootstrap();
 
     return this;
@@ -250,6 +291,34 @@ export class NgContainer extends DevContainerRuntime {
 
   async onShutUp(config: DevContainerConfig) {
     // let rebootCalled = false;
+
+    wpc.for('NgContainerCopyIndexHtml').tap(
+      this.compiler,
+      'done',
+      async (stats: webpack.Stats) => {
+        if (!stats.hasErrors() && this.browserIndexSourcePath && this.browserIndexOutputPath) {
+          const root = normalize(this.builderContext.workspaceRoot);
+          const builderOutput = createUniversalBuilderOutput(
+            stats,
+            this.webpackConfig as webpack.Configuration[],
+          );
+
+          await writeIndexHtml({
+            host: this.host,
+            outputPath: join(root, this.browserOptions.outputPath),
+            indexPath: join(root, this.browserOptions.index),
+            files: builderOutput.browserFiles,
+            noModuleFiles: builderOutput.browserNoModuleFiles,
+            moduleFiles: builderOutput.browserModuleFiles,
+            baseHref: this.browserOptions.baseHref,
+            deployUrl: this.browserOptions.deployUrl,
+            sri: this.browserOptions.subresourceIntegrity,
+            scripts: this.browserOptions.scripts,
+            styles: this.browserOptions.styles,
+          }).toPromise();
+        }
+      },
+    );
 
     wpc.for('NgContainerInvalidPlugin').tap(
       this.compiler,

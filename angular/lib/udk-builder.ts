@@ -39,6 +39,7 @@ import udk = require('../../lib/index');
 
 import {
   BrowserBuilderSchema,
+  BuildBrowserFeatures,
   ServerBuilderSchema,
   UdkBuilderOutput,
   Version,
@@ -52,7 +53,6 @@ import {
   createWebpackUniversalConfig,
   deleteConfigOutputPath,
   getProjectName,
-  isEs5SupportNeeded,
   isTerminalColorsEnabled,
   readTsconfig,
   writeIndexHtml,
@@ -105,8 +105,15 @@ export function buildUniversal(
     );
     const tsConfig = readTsconfig(tsConfigPath);
 
+    const ts = await import('typescript');
+
+    // At the moment, only the browser builder supports differential loading
+    // However this config generation is used by multiple builders such as dev-server
+    const scriptTarget = tsConfig.options.target || ts.ScriptTarget.ES5;
+    const buildBrowserFeatures = new BuildBrowserFeatures(projectRoot, scriptTarget);
+
     if (
-      isEs5SupportNeeded(projectRoot)
+      buildBrowserFeatures.isEs5SupportNeeded()
       && tsConfig.options.target !== ScriptTarget.ES5
       && tsConfig.options.target !== ScriptTarget.ES2015
     ) {
@@ -295,7 +302,7 @@ function runMultiCompiler(
         obs.complete();
       }
     })),
-    concatMap((builderOutput: UdkBuilderOutput) => {
+    concatMap((builderOutput) => {
       const withDifferentialLoading = multiConfig.length > 2;
 
       if (!builderOutput.success || !browserOptions.index || !withDifferentialLoading) {
@@ -303,13 +310,13 @@ function runMultiCompiler(
       }
 
       // For differential loading, the builder needs to created the index.html by itself
-      // without using a webpack plugin.
       return writeIndexHtml({
         host,
         outputPath: join(root, browserOptions.outputPath),
         indexPath: join(root, browserOptions.index),
-        ES5BuildFiles: builderOutput.browserES5EmittedFiles,
-        ES2015BuildFiles: builderOutput.browserES6EmittedFiles,
+        files: builderOutput.browserFiles,
+        noModuleFiles: builderOutput.browserNoModuleFiles,
+        moduleFiles: builderOutput.browserModuleFiles,
         baseHref: browserOptions.baseHref,
         deployUrl: browserOptions.deployUrl,
         sri: browserOptions.subresourceIntegrity,
@@ -326,7 +333,7 @@ function runMultiCompiler(
         }),
       );
     }),
-    concatMap(builderOutput => {
+    concatMap((builderOutput: UdkBuilderOutput) => {
       if (!builderOutput.success || !browserOptions.serviceWorker) {
         return of(builderOutput);
       }
