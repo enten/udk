@@ -41,6 +41,13 @@
       "description": "Delete the output path before building.",
       "default": true
     },
+    "bundleDependenciesWhitelist": {
+      "type": "array",
+      "description": "Array of RegExp patterns to match require request of dependencies to bundle.",
+      "items": {
+        "type": "string"
+      }
+    },
     "verbose": {
       "type": "boolean",
       "description": "Adds more details to output logging.",

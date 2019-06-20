@@ -41,6 +41,7 @@ import {
 } from '../../lib/devContainer';
 import {
   BrowserBuilderSchema,
+  ServerBuilderSchema,
   createLoggingCallback,
   createUniversalBuilderOutput,
   deleteConfigOutputPath,
@@ -99,6 +100,7 @@ export class NgContainer extends DevContainerRuntime {
   browserIndexSourcePath: Path;
   browserIndexOutputPath: Path;
   browserOptions: BrowserBuilderSchema;
+  serverOptions: ServerBuilderSchema;
 
   constructor(readonly runtimePath: string, readonly proc: NodeJS.Process) {
     super(runtimePath, proc);
@@ -299,6 +301,9 @@ export class NgContainer extends DevContainerRuntime {
         if (!stats.hasErrors() && this.browserIndexSourcePath && this.browserIndexOutputPath) {
           const root = normalize(this.builderContext.workspaceRoot);
           const builderOutput = createUniversalBuilderOutput(
+            this.builderOptions as json.JsonObject & BuildUdkSchema,
+            this.browserOptions as json.JsonObject & BrowserBuilderSchema,
+            this.serverOptions as json.JsonObject & ServerBuilderSchema,
             stats,
             this.webpackConfig as webpack.Configuration[],
           );

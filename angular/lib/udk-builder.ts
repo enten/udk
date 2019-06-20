@@ -128,9 +128,10 @@ export function buildUniversal(
   };
 
   return from(initialize()).pipe(
-    switchMap(({ browserOptions, config }) => runMultiCompiler(
+    switchMap(({ browserOptions, serverOptions, config }) => runMultiCompiler(
       options,
       browserOptions,
+      serverOptions,
       projectRoot,
       context,
       host,
@@ -202,6 +203,7 @@ export async function buildUniversalConfig(
     serverOptions,
     context,
     !!options.fileLoaderEmitFile,
+    options.bundleDependenciesWhitelist,
   );
 
   const browserConfigsTransformed: webpack.Configuration[] = [];
@@ -237,6 +239,7 @@ export async function buildUniversalConfig(
 function runMultiCompiler(
   options: BuildUdkSchema,
   browserOptions: BrowserBuilderSchema,
+  serverOptions: ServerBuilderSchema,
   projectRoot: Path,
   context: BuilderContext,
   host: virtualFs.Host<fs.Stats>,
@@ -285,7 +288,13 @@ function runMultiCompiler(
 
         logStats(multiStats, multiConfig as {} as webpack.Configuration);
 
-        const builderOutput = createUniversalBuilderOutput(multiStats, multiConfig);
+        const builderOutput = createUniversalBuilderOutput(
+          options as json.JsonObject & BuildUdkSchema,
+          browserOptions as json.JsonObject & BrowserBuilderSchema,
+          serverOptions as json.JsonObject & ServerBuilderSchema,
+          multiStats,
+          multiConfig,
+        );
 
         obs.next(builderOutput);
         obs.complete();

@@ -38,6 +38,10 @@ export interface BuildUdkSchema {
    */
   deleteOutputPath?: boolean;
   /**
+   * Array of RegExp patterns to match require request of dependencies to bundle.
+   */
+  bundleDependenciesWhitelist?: string[];
+  /**
    * Adds more details to output logging.
    */
   verbose: boolean;

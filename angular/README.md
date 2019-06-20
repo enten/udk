@@ -15,6 +15,7 @@ Build an universal angular application.
 | `fileReplacements` | | | Replace files with other files in browser and server. |
 | `deleteOutputPath` | boolean | false | Delete the output path before building. |
 | `fileLoaderEmitFile` | boolean | false | File loader emit file. |
+| `bundleDependenciesWhitelist` | string[] | | Array of RegExp patterns to match require request of dependencies to bundle. |
 | `verbose` | boolean | false | Adds more details to output logging. |
 
 ### udk:udk-runner

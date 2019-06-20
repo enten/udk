@@ -53,6 +53,7 @@ import { concatMap } from 'rxjs/operators';
 
 import webpack = require('webpack');
 import webpackMerge = require('webpack-merge');
+import { BuildUdkSchema } from './schema';
 
 export {
   WriteIndexHtmlOptions,
@@ -85,6 +86,9 @@ export type UdkBuilderEmittedFile = json.JsonObject & {
 
 export type UdkBuilderOutput = BuilderOutput & {
   success: boolean;
+  udkOptions: BuildUdkSchema;
+  browserOptions: BrowserBuilderSchema;
+  serverOptions: ServerBuilderOptions;
   browserES5EmittedFiles: UdkBuilderEmittedFile[];
   browserES6EmittedFiles: UdkBuilderEmittedFile[];
   browserFiles: UdkBuilderEmittedFile[];
@@ -259,6 +263,7 @@ export async function buildServerWebpackConfig(
   options: ServerBuilderOptions,
   context: BuilderContext,
   fileLoaderEmitFile: boolean,
+  bundleDependenciesWhitelist?: string[],
 ): Promise<webpack.Configuration> {
   const { config: configs } = await generateBrowserWebpackConfigFromContext(
     {
@@ -278,12 +283,50 @@ export async function buildServerWebpackConfig(
     ],
   );
 
-  configs[0].name = 'server';
+  const serverConfig = configs[0];
+
+  if (bundleDependenciesWhitelist) {
+    const whitelistPatterns = ([] as string[])
+      .concat(bundleDependenciesWhitelist || [])
+      .map(whitelistPattern => new RegExp(whitelistPattern));
+
+    const isWhitelisted: (request: string) => boolean = request => {
+      for (const whitelistPattern of whitelistPatterns) {
+        if (whitelistPattern.test(request)) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    // note(enten): angular server model declare an array with a function filter as second item.
+    // We intercept its behavior. When that will break: that mean something
+    // change related to angular server model.
+    //
+    // tslint:disable-next-line: max-line-length
+    // @see https://github.com/angular/angular-cli/blob/v8.1.0-beta.2/packages/angular_devkit/build_angular/src/angular-cli-files/models/webpack-configs/server.ts#L40
+    // tslint:disable-next-line: max-line-length
+    const configExternals = serverConfig.externals as webpack.ExternalsFunctionElement[];
+    const angularServerExternalsFn = configExternals[1];
+
+
+    // tslint:disable-next-line: no-any
+    configExternals[1] = (_, request, callback: (error?: any, result?: any) => void) => {
+      if (isWhitelisted(request)) {
+        callback();
+      } else {
+        angularServerExternalsFn(_, request, callback);
+      }
+    };
+  }
+
+  serverConfig.name = 'server';
 
   // fix: disable server config to emit assets
   setWebpackFileLoaderEmitFile(configs[0], fileLoaderEmitFile);
 
-  return configs[0];
+  return serverConfig;
 }
 
 
@@ -341,11 +384,17 @@ export function createLoggingCallback(
 
 
 export function createUniversalBuilderOutput(
+  udkOptions: json.JsonObject & BuildUdkSchema,
+  browserOptions: json.JsonObject & BrowserBuilderSchema,
+  serverOptions: json.JsonObject & ServerBuilderOptions,
   multiStats: webpack.Stats | { stats: webpack.Stats[] },
   multiConfig: webpack.Configuration | webpack.Configuration[],
 ): UdkBuilderOutput {
   const result: UdkBuilderOutput = {
     success: !!multiStats && !(multiStats as { hasErrors(): boolean }).hasErrors(),
+    udkOptions,
+    browserOptions,
+    serverOptions,
     browserES5EmittedFiles: [],
     browserES6EmittedFiles: [],
     browserFiles: [],
