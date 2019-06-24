@@ -248,11 +248,11 @@ export class NgContainer extends DevContainerRuntime {
       || configProjectTarget.configuration
       || undefined;
 
-    return {
-      project,
-      target,
-      configuration,
-    } as Target;
+    if (configuration) {
+      return { project, target, configuration } as Target;
+    }
+
+    return { project, target } as Target;
   }
 
   createArchitectLoggerAdapter(architectLogger: logging.LoggerApi): Console {
@@ -376,8 +376,8 @@ export class NgContainer extends DevContainerRuntime {
   parseProcessArgsOptions() {
     const opts = super.parseProcessArgsOptions();
 
-    opts.alias = { ...opts.alias, p: 'project', c: 'configuration' };
-    opts.string = ([] as string[]).concat(opts.string || [], 'project', 'configuration');
+    opts.alias = { ...opts.alias, p: 'project', t: 'target', c: 'configuration' };
+    opts.string = ([] as string[]).concat(opts.string || [], 'project', 'target', 'configuration');
 
     return opts;
   }

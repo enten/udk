@@ -22,6 +22,10 @@ export function runUniversal(
     ngUdkcArgs.push('--configuration', context.target.configuration);
   }
 
+  if (typeof options.universalTarget === 'string') {
+    ngUdkcArgs.push('--target', options.universalTarget);
+  }
+
   if (options.debug) {
     ngUdkcArgs.push('--debug');
   }

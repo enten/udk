@@ -7,6 +7,10 @@
       "type": "boolean",
       "description": "Debug udk dev container.",
       "default": false
+    },
+    "universalTarget": {
+      "type": "string",
+      "description": "Target to universal."
     }
   },
   "additionalProperties": false
