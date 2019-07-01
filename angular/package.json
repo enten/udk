@@ -2,7 +2,7 @@
   "private": true,
   "name": "@architect/udk",
   "peerDependencies": {
-    "@angular-devkit/build-angular": "~0.801.0-beta.2",
-    "@angular/cli": "~8.1.0-beta.2"
+    "@angular-devkit/build-angular": "~0.801.0-rc.0",
+    "@angular/cli": "~8.1.0-rc.0"
   }
 }
