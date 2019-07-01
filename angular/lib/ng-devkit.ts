@@ -73,7 +73,7 @@ export { Schema as ServerBuilderSchema } from '@angular-devkit/build-angular/src
 export {
   BuildBrowserFeatures,
 } from '@angular-devkit/build-angular/src/utils/build-browser-features';
-export { Version } from '@angular-devkit/build-angular/src/utils/version';
+export { assertCompatibleAngularVersion } from '@angular-devkit/build-angular/src/utils/version';
 
 
 export type UdkBuilderEmittedFile = json.JsonObject & {

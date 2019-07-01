@@ -42,9 +42,9 @@ import {
   BuildBrowserFeatures,
   ServerBuilderSchema,
   UdkBuilderOutput,
-  Version,
   adaptWebpackLoggingCallback,
   applyPartialWebpackConfig,
+  assertCompatibleAngularVersion,
   augmentAppWithServiceWorker,
   buildBrowserWebpackConfigs,
   buildServerWebpackConfig,
@@ -70,7 +70,7 @@ export function buildUniversal(
   } = {},
 ) {
   // Check Angular version.
-  Version.assertCompatibleAngularVersion(context.workspaceRoot);
+  assertCompatibleAngularVersion(context.workspaceRoot, context.logger);
 
   const registry = new schema.CoreSchemaRegistry();
   registry.addPostTransform(schema.transforms.addUndefinedDefaults);
