@@ -244,13 +244,13 @@ export async function buildBrowserWebpackConfigs(
   context.builder.builderName = buidlerNameOrigin;
 
   if (configs.length === 2) {
-    // note: ts.ScriptTarget.ES5 is first entry
+    // note: ts.ScriptTarget.ES6 is first entry
     //
     // tslint:disable-next-line: max-line-length
     // https://github.com/angular/angular-cli/blob/v8.0.0-rc.4/packages/angular_devkit/build_angular/src/utils/webpack-browser-config.ts#L63
 
-    configs[0].name = 'browser-es5';
-    configs[1].name = 'browser-es6';
+    configs[0].name = 'browser-es6';
+    configs[1].name = 'browser-es5';
   } else {
     configs[0].name = 'browser';
   }
@@ -425,12 +425,12 @@ export function createUniversalBuilderOutput(
     // Collect server emitted files
     if (config.target === 'node') {
       result.serverEmittedFiles = getEmittedFiles(stats.compilation) as UdkBuilderEmittedFile[];
-    // Collect browser es5 emitted files
-    } else if (statsIndex === 0) {
-      result.browserES5EmittedFiles = getEmittedFiles(stats.compilation) as UdkBuilderEmittedFile[];
     // Collect browser es6 emitted files
-    } else if (statsIndex === 1) {
+    } else if (statsIndex === 0) {
       result.browserES6EmittedFiles = getEmittedFiles(stats.compilation) as UdkBuilderEmittedFile[];
+    // Collect browser es5 emitted files
+    } else if (statsIndex === 1) {
+      result.browserES5EmittedFiles = getEmittedFiles(stats.compilation) as UdkBuilderEmittedFile[];
     // If code below run, it's mean that devkit has changed and generates more browser configs
     } else {
       throw new Error('BREAKING CHANGE DETECTED! Universal config must have 2 or 3 childs');
