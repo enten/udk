@@ -445,7 +445,7 @@ export function createUniversalBuilderOutput(
     result.browserModuleFiles = result.browserES6EmittedFiles;
     result.browserFiles = result.browserES6EmittedFiles.filter(x => x.extension === '.css');
   } else {
-    const emittedFiles = result.browserES5EmittedFiles;
+    const emittedFiles = result.browserES6EmittedFiles;
     result.browserFiles = emittedFiles.filter(x => x.name !== 'polyfills-es5');
     result.browserNoModuleFiles = emittedFiles.filter(x => x.name === 'polyfills-es5');
   }
