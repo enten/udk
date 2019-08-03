@@ -7,6 +7,10 @@ import * as path from 'path';
 
 import { BuilderContext, createBuilder, targetFromTargetString } from '@angular-devkit/architect';
 import { ExecutionTransformer, FileReplacement } from '@angular-devkit/build-angular';
+import {
+  getIndexInputFile,
+  getIndexOutputFile,
+} from '@angular-devkit/build-angular/src/utils/webpack-browser-config';
 
 import {
   ArchitectPlugin,
@@ -321,8 +325,11 @@ function runMultiCompiler(
       // For differential loading, the builder needs to created the index.html by itself
       return writeIndexHtml({
         host,
-        outputPath: join(root, browserOptions.outputPath),
-        indexPath: join(root, browserOptions.index),
+        outputPath: resolve(
+          root, join(normalize(browserOptions.outputPath),
+          getIndexOutputFile(browserOptions)),
+        ),
+        indexPath: join(root, getIndexInputFile(browserOptions)),
         files: builderOutput.browserFiles,
         noModuleFiles: builderOutput.browserNoModuleFiles,
         moduleFiles: builderOutput.browserModuleFiles,

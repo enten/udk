@@ -14,6 +14,11 @@ import {
 } from '@angular-devkit/architect';
 import { WorkspaceNodeModulesArchitectHost } from '@angular-devkit/architect/node';
 
+import {
+  getIndexInputFile,
+  getIndexOutputFile,
+} from '@angular-devkit/build-angular/src/utils/webpack-browser-config';
+
 import { WebpackLoggingCallback } from '@angular-devkit/build-webpack';
 
 import {
@@ -24,6 +29,7 @@ import {
   json,
   logging,
   normalize,
+  resolve,
   schema,
   virtualFs,
 } from '@angular-devkit/core';
@@ -310,8 +316,11 @@ export class NgContainer extends DevContainerRuntime {
 
           await writeIndexHtml({
             host: this.host,
-            outputPath: join(root, this.browserOptions.outputPath),
-            indexPath: join(root, this.browserOptions.index),
+            outputPath: resolve(
+              root, join(normalize(this.browserOptions.outputPath),
+              getIndexOutputFile(this.browserOptions)),
+            ),
+            indexPath: join(root, getIndexInputFile(this.browserOptions)),
             files: builderOutput.browserFiles,
             noModuleFiles: builderOutput.browserNoModuleFiles,
             moduleFiles: builderOutput.browserModuleFiles,
