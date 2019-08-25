@@ -204,10 +204,10 @@ export async function buildUniversalConfig(
   );
 
   const serverConfig: webpack.Configuration = await buildServerWebpackConfig(
+    options,
     serverOptions,
+    browserOptions,
     context,
-    !!options.fileLoaderEmitFile,
-    options.bundleDependenciesWhitelist,
   );
 
   const browserConfigsTransformed: webpack.Configuration[] = [];

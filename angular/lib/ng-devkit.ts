@@ -6,7 +6,7 @@ import * as fs from 'fs';
 
 import { BuilderContext, BuilderOutput, Target } from '@angular-devkit/architect';
 
-import { ExecutionTransformer } from '@angular-devkit/build-angular';
+import { BrowserBuilderOptions, ExecutionTransformer } from '@angular-devkit/build-angular';
 import {
   WebpackConfigOptions,
 } from '@angular-devkit/build-angular/src/angular-cli-files/models/build-options';
@@ -14,6 +14,7 @@ import {
   getAotConfig,
   getCommonConfig,
   getNonAotConfig,
+  getOutputHashFormat,
   getServerConfig,
   getStatsConfig,
   getStylesConfig,
@@ -47,6 +48,8 @@ import {
   terminal,
   virtualFs,
 } from '@angular-devkit/core';
+
+import { default as PostcssCliResources } from './postcss-cli-resources.server';
 
 import { Observable, from, of } from 'rxjs';
 import { concatMap } from 'rxjs/operators';
@@ -260,14 +263,14 @@ export async function buildBrowserWebpackConfigs(
 
 
 export async function buildServerWebpackConfig(
-  options: ServerBuilderOptions,
+  udkOptions: BuildUdkSchema,
+  serverOptions: ServerBuilderOptions,
+  browserOptions: BrowserBuilderOptions,
   context: BuilderContext,
-  fileLoaderEmitFile: boolean,
-  bundleDependenciesWhitelist?: string[],
 ): Promise<webpack.Configuration> {
   const { config: configs } = await generateBrowserWebpackConfigFromContext(
     {
-      ...options,
+      ...serverOptions,
       // index: '',
       buildOptimizer: false,
       aot: true,
@@ -285,9 +288,9 @@ export async function buildServerWebpackConfig(
 
   const serverConfig = configs[0];
 
-  if (bundleDependenciesWhitelist) {
+  if (udkOptions.bundleDependenciesWhitelist) {
     const whitelistPatterns = ([] as string[])
-      .concat(bundleDependenciesWhitelist || [])
+      .concat(udkOptions.bundleDependenciesWhitelist || [])
       .map(whitelistPattern => new RegExp(whitelistPattern));
 
     const isWhitelisted: (request: string) => boolean = request => {
@@ -324,7 +327,7 @@ export async function buildServerWebpackConfig(
   serverConfig.name = 'server';
 
   // fix: disable server config to emit assets
-  setWebpackFileLoaderEmitFile(configs[0], fileLoaderEmitFile);
+  setWebpackFileLoaderEmitFile(udkOptions, serverOptions, browserOptions, configs[0]);
 
   return serverConfig;
 }
@@ -576,13 +579,15 @@ export function makeTargetSpecifier(
 
 
 export function setWebpackFileLoaderEmitFile(
+  udkOptions: BuildUdkSchema,
+  serverOptions: ServerBuilderOptions,
+  browserOptions: BrowserBuilderOptions,
   webpackConfig: webpack.Configuration,
-  value: boolean,
-  fileLoaderName = 'file-loader',
 ): void {
+  const value = !!udkOptions.fileLoaderEmitFile;
   const fileLoader = webpackConfig.module
     && webpackConfig.module.rules
-    && webpackConfig.module.rules.find(rule => rule.loader === fileLoaderName);
+    && webpackConfig.module.rules.find(rule => rule.loader === 'file-loader');
 
   if (fileLoader) {
     if (fileLoader.options) {
@@ -590,5 +595,66 @@ export function setWebpackFileLoaderEmitFile(
     } else {
       fileLoader.options = { emitFile: value };
     }
+  }
+
+  if (value || !webpackConfig.module) {
+    return;
+  }
+
+  // fix: avoid extract css files when value is false
+
+  // Determine hashing format.
+  const hashFormat = getOutputHashFormat(serverOptions.outputHashing as string);
+
+  const autoprefixer = require('autoprefixer');
+  const postcssImports = require('postcss-import');
+
+  const udkPostcssPluginCreator = (loader: webpack.loader.LoaderContext) => [
+    postcssImports({
+      resolve: (url: string) => (url.startsWith('~') ? url.substr(1) : url),
+      load: (filename: string) => {
+        return new Promise<string>((resolve, reject) => {
+          loader.fs.readFile(filename, (err: Error, data: Buffer) => {
+            if (err) {
+              reject(err);
+
+              return;
+            }
+
+            const content = data.toString();
+            resolve(content);
+          });
+        });
+      },
+    }),
+    PostcssCliResources({
+      baseHref: browserOptions.baseHref,
+      deployUrl: browserOptions.deployUrl,
+      resourcesOutputPath: browserOptions.resourcesOutputPath,
+      loader,
+      rebaseRootRelative: browserOptions.rebaseRootRelativeCssUrls,
+      filename: `[name]${hashFormat.file}.[ext]`,
+    }),
+    autoprefixer(),
+  ];
+
+  for (const rule of webpackConfig.module.rules) {
+    if (!rule || !rule.test || !(rule.test instanceof RegExp) || !rule.use) {
+      continue;
+    }
+
+    if (!rule.test.test('.scss') && !rule.test.test('.less') && !rule.test.test('.styl')) {
+      continue;
+    }
+
+    // tslint:disable-next-line: max-line-length
+    const postcssLoader = (rule.use as webpack.RuleSetLoader[]).find((ruleUse: webpack.RuleSetLoader) => ruleUse.loader === 'postcss-loader');
+
+    if (!postcssLoader) {
+        continue;
+    }
+
+    // tslint:disable-next-line: no-any
+    (postcssLoader.options as { [k: string]: any }).plugins = udkPostcssPluginCreator;
   }
 }
