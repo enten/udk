@@ -3,12 +3,22 @@
   "builders": {
     "udk-builder": {
       "implementation": "./lib/udk-builder",
-      "schema": "./lib/udk-builder.schema.json",
+      "schema": "./lib/build/schema.json",
       "description": "Build an universal angular application with udk."
     },
     "udk-runner": {
       "implementation": "./lib/udk-runner",
-      "schema": "./lib/udk-runner.schema.json",
+      "schema": "./lib/serve/schema.json",
+      "description": "Run an universal angular application with udk."
+    },
+    "build": {
+      "implementation": "./lib/udk-builder",
+      "schema": "./lib/build/schema.json",
+      "description": "Build an universal angular application with udk."
+    },
+    "serve": {
+      "implementation": "./lib/udk-runner",
+      "schema": "./lib/serve/schema.json",
       "description": "Run an universal angular application with udk."
     }
   }

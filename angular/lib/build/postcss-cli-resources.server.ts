@@ -5,7 +5,7 @@
  *
  * This plugin should be used on server side to don't emit file from css.
  *
- * Do do that we simply comment line `loader.emitFile(outputPath, content, undefined);`.
+ * To do that we simply comment line `loader.emitFile(outputPath, content, undefined);`.
  */
 /**
  * @license

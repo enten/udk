@@ -1,27 +1,34 @@
 {
   "$schema": "http://json-schema.org/schema",
-  "id": "UdkBuilderSchema",
-  "title": "Udk Builder Schema",
+  "id": "BuildAngularWebpackUniversalSchema",
+  "title": "Universal Target",
+  "description": "Universal target options for Build Facade.",
+  "type": "object",
   "properties": {
-    "main": {
-      "type": "string",
-      "description": "TEMPORARY DISABLED. DO NOT USE."
-    },
     "browserTarget": {
       "type": "string",
       "description": "Target to browser."
     },
     "serverTarget": {
       "type": "string",
-      "description": "Target for server."
+      "description": "Target to server."
     },
-    "partialBrowserConfig": {
-      "type": "string",
-      "description": "Partial webpack config for browser."
+    "bundleDependenciesWhitelist": {
+      "type": "array",
+      "description": "Array of RegExp patterns to match require request of dependencies to bundle.",
+      "items": {
+        "type": "string"
+      }
     },
-    "partialServerConfig": {
-      "type": "string",
-      "description": "Partial webpack config for server."
+    "deleteOutputPath": {
+      "type": "boolean",
+      "description": "Delete the output path before building.",
+      "default": true
+    },
+    "fileLoaderEmitFile": {
+      "type": "boolean",
+      "description": "File loader emit file.",
+      "default": false
     },
     "fileReplacements": {
       "description": "Replace files with other files in the build.",
@@ -31,22 +38,13 @@
       },
       "default": []
     },
-    "fileLoaderEmitFile": {
-      "type": "boolean",
-      "description": "File loader emit file.",
-      "default": false
+    "partialBrowserConfig": {
+      "type": "string",
+      "description": "Partial webpack config for browser."
     },
-    "deleteOutputPath": {
-      "type": "boolean",
-      "description": "Delete the output path before building.",
-      "default": true
-    },
-    "bundleDependenciesWhitelist": {
-      "type": "array",
-      "description": "Array of RegExp patterns to match require request of dependencies to bundle.",
-      "items": {
-        "type": "string"
-      }
+    "partialServerConfig": {
+      "type": "string",
+      "description": "Partial webpack config for server."
     },
     "verbose": {
       "type": "boolean",

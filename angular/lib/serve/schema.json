@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "id": "BuildAngularWebpackUniversalDevServerSchema",
+  "title": "Universal Dev Server Target",
+  "description": "Universal Dev Server target options for Build Facade.",
+  "type": "object",
+  "properties": {
+    "universalTarget": {
+      "type": "string",
+      "description": "Target to universal."
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Debug udk dev container.",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "universalTarget"
+  ]
+}

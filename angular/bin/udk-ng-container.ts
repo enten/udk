@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Copyright (c) 2018 Steven Enten. All rights reserved. Licensed under the MIT license.
 
-import NgContainer, { NgContainerAPI } from '../lib/devContainer';
+import NgContainer, { NgContainerAPI } from '../lib/serve/devContainer';
 
 const udkc: NgContainerAPI = NgContainer(process);
 
