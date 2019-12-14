@@ -24,7 +24,8 @@ Run an universal angular application.
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| **`debug`** | boolean | | Debug udk dev container |
+| **`universalTarget`** | string | | Target to universal |
+| `debug` | boolean | | Debug udk dev container |
 
 
 ## Example
@@ -40,10 +41,10 @@ When udk-builder is configured:
 
 ```diff
 diff --git a/angular.json b/angular.json
-index 2cd40ef..12c3453 100644
+index 4fcecd1..e30db3b 100644
 --- a/angular.json
 +++ b/angular.json
-@@ -15,14 +15,27 @@
+@@ -15,9 +15,23 @@
        "prefix": "app",
        "architect": {
          "build": {
@@ -68,12 +69,7 @@ index 2cd40ef..12c3453 100644
              "index": "src/index.html",
              "main": "src/main.ts",
              "polyfills": "src/polyfills.ts",
-             "tsConfig": "tsconfig.app.json",
--            "aot": false,
-             "assets": [
-               "src/favicon.ico",
-               "src/assets"
-@@ -59,21 +72,49 @@
+@@ -63,21 +77,52 @@
              }
            }
          },
@@ -82,6 +78,7 @@ index 2cd40ef..12c3453 100644
 +          "options": {
 +            "outputPath": "dist/app/server",
 +            "main": "src/server.ts",
++            "bundleDependencies": false,
 +            "tsConfig": "tsconfig.server.json",
 +            "sourceMap": {
 +              "scripts": true,
@@ -102,7 +99,9 @@ index 2cd40ef..12c3453 100644
 +        },
          "serve": {
 +          "builder": "udk:udk-runner",
-+          "options": {},
++          "options": {
++            "universalTarget": "app:build"
++          },
 +          "configurations": {}
 +        },
 +        "serve-spa": {
@@ -126,7 +125,7 @@ index 2cd40ef..12c3453 100644
            }
          },
          "test": {
-@@ -110,11 +151,11 @@
+@@ -114,11 +159,11 @@
            "builder": "@angular-devkit/build-angular:protractor",
            "options": {
              "protractorConfig": "e2e/protractor.conf.js",

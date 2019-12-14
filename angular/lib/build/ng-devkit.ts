@@ -131,15 +131,15 @@ export async function getUniversalTargetOptions<K extends keyof UniversalTargetO
   options: UniversalBuildOptions,
   platformTarget: K,
 ): Promise<UniversalTargetOptionsMap[K]> {
-  const optionsOverrides: json.JsonObject = {
+  const optionsOverrides = {
     deleteOutputPath: !!options.deleteOutputPath,
     verbose: !!options.verbose,
-  };
+  } as Partial<UniversalTargetOptionsMap[K]>;
 
   const targetString = platformTarget === 'server' ? options.serverTarget : options.browserTarget;
 
   // get platform target options
-  const platformOptions = await validateTargetOptions<BrowserBuilderOptions | ServerBuilderOptions>(
+  const platformOptions = await validateTargetOptions<UniversalTargetOptionsMap[K]>(
     context,
     targetString,
     optionsOverrides,
@@ -150,6 +150,16 @@ export async function getUniversalTargetOptions<K extends keyof UniversalTargetO
     ...(platformOptions.fileReplacements || []),
     ...(options.fileReplacements || []),
   ];
+
+  if (platformTarget === 'server') {
+    const serverOptions = platformOptions as ServerBuilderOptions;
+
+    if (typeof serverOptions.bundleDependencies === 'string') {
+      serverOptions.bundleDependencies = (serverOptions.bundleDependencies === 'all') as any;
+      // tslint:disable-next-line: max-line-length
+      context.logger.warn(`Server option 'bundleDependencies' string value is deprecated since version 9. Use a boolean value instead.`);
+    }
+  }
 
   return platformOptions as UniversalTargetOptionsMap[K];
 }
@@ -785,15 +795,6 @@ export async function initializeServerBuilder(
   serverOptions: ServerBuilderOptions,
   context: BuilderContext,
 ): Promise<ServerBuilderInitContext> {
-  // let bundleDependencies: boolean | undefined;
-  // if (typeof serverOptions.bundleDependencies === 'string') {
-  //   bundleDependencies = serverOptions.bundleDependencies === 'all';
-  // tslint:disable-next-line: max-line-length
-  //   context.logger.warn(`Option 'bundleDependencies' string value is deprecated since version 9. Use a boolean value instead.`);
-  // } else {
-  //   bundleDependencies = serverOptions.bundleDependencies;
-  // }
-
   const {
     config: serverConfig,
     projectRoot,
@@ -804,7 +805,6 @@ export async function initializeServerBuilder(
       ...serverOptions,
       buildOptimizer: false,
       aot: true,
-      // bundleDependencies,
       platform: 'server',
     } as NormalizedBrowserBuilderSchema,
     context,
@@ -898,14 +898,38 @@ export function setWebpackServerExternals(
   universalOptions: UniversalBuildOptions,
   serverConfig: webpack.Configuration,
 ): void {
-  const whitelistPatterns = [ ...(universalOptions.bundleDependenciesWhitelist || []) ]
-    .filter(whitelistPattern => !!whitelistPattern)
-    .map(whitelistPattern => new RegExp(whitelistPattern));
+  const externals = serverConfig.externals as webpack.ExternalsElement[];
+  const lastExternalIndex = externals.length - 1;
 
-  if (!whitelistPatterns.length) {
+  // note(enten): angular server model declare an array with a function filter as last item
+  // when server option `bundleDependencies` is false.
+  //
+  // When function filter is missing, that means server option `bundleDependencies` is true.
+  // In this case, universal option `bundleDependenciesWhitelist` can be ignored because
+  // we want to bundle all dependencies except server option `externalDependencies` (which
+  // are already set into webpack server config `externals`).
+  //
+  // tslint:disable-next-line: max-line-length
+  // @see v9.0.0-rc.5/packages/angular_devkit/build_angular/src/angular-cli-files/models/webpack-configs/server.ts#L42
+  // tslint:disable-next-line: max-line-length
+  // @see v9.0.0-rc.6/packages/angular_devkit/build_angular/src/angular-cli-files/models/webpack-configs/server.ts#L49
+  if (!externals || typeof externals[lastExternalIndex] !== 'function') {
     return;
   }
 
+  const angularServerExternalsFn = externals.pop() as webpack.ExternalsFunctionElement;
+
+  const whitelistStrings = [...(universalOptions.bundleDependenciesWhitelist || [])];
+
+  if (!whitelistStrings.includes('^@angular/')) {
+    whitelistStrings.push('^@angular/');
+  }
+
+  if (!whitelistStrings.includes('^@nguniversal/')) {
+    whitelistStrings.push('^@nguniversal/');
+  }
+
+  const whitelistPatterns = whitelistStrings.map(whitelistPattern => new RegExp(whitelistPattern))
   const isWhitelisted: (request: string) => boolean = request => {
     for (const whitelistPattern of whitelistPatterns) {
       if (whitelistPattern.test(request)) {
@@ -916,30 +940,17 @@ export function setWebpackServerExternals(
     return false;
   };
 
-  // note(enten): angular server model declare an array with a function filter as second item.
-  // We intercept its behavior. When that will break: that mean something
-  // change related to angular server model.
-  //
-  // tslint:disable-next-line: max-line-length
-  // @see v8.1.0-beta.2/packages/angular_devkit/build_angular/src/angular-cli-files/models/webpack-configs/server.ts#L40
-  const configExternals = serverConfig.externals as webpack.ExternalsFunctionElement[];
-
-  if (configExternals) {
-    const angularServerExternalsFn = configExternals[1];
-
-    if (typeof angularServerExternalsFn !== 'function') {
-      throw new Error('Bearking change detected with angular webpack server model and externals');
+  externals[lastExternalIndex] = (
+    context: string,
+    request: string,
+    callback: (error?: null, result?: string) => void,
+  ) => {
+    if (isWhitelisted(request)) {
+      callback();
+    } else {
+      angularServerExternalsFn(context, request, callback);
     }
-
-    // tslint:disable-next-line: no-any
-    configExternals[1] = (_, request, callback: (error?: any, result?: any) => void) => {
-      if (isWhitelisted(request)) {
-        callback();
-      } else {
-        angularServerExternalsFn(_, request, callback);
-      }
-    };
-  }
+  };
 }
 
 export function setWebpackServerFileLoaderEmitFile(

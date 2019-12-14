@@ -145,14 +145,6 @@ export class NgContainer extends DevContainerRuntime {
     }
 
     const root = path.dirname(this.angularConfigPath);
-    const configContent = fs.readFileSync(this.angularConfigPath, 'utf-8');
-    const workspaceJson = JSON.parse(configContent);
-    console.log({
-      angularConfigPath: this.angularConfigPath,
-      root,
-      workspaceJson,
-      args: this.args,
-    });
 
     this.registry = new schema.CoreSchemaRegistry();
     this.registry.addPostTransform(schema.transforms.addUndefinedDefaults);

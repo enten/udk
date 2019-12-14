@@ -1,6 +1,6 @@
 {
   "name": "udk",
-  "version": "1.1.9-rc.0",
+  "version": "1.1.9-rc.1",
   "description": "Universal Development Kit",
   "license": "MIT",
   "author": "Steven Enten <steven@enten.fr>",
@@ -98,8 +98,8 @@
     "yargs-parser": "^13.0.0"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "~0.900.0-rc.5",
-    "@angular/cli": "~9.0.0-rc.5",
+    "@angular-devkit/build-angular": "~0.900.0-rc.6",
+    "@angular/cli": "~9.0.0-rc.6",
     "@types/debug": "^4.1.2",
     "@types/jest": "^24.0.11",
     "@types/loader-utils": "^1.1.3",
