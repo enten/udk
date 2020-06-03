@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "rimraf": "^2.6.3",
-    "udk": "~1.1.8",
+    "udk": "~1.1.9",
     "webpack": "^3.12.0"
   }
 }
