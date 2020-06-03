@@ -14,8 +14,6 @@ Build an universal angular application.
 | `partialServerConfig` | string | | Partial webpack config for server. |
 | `fileReplacements` | | | Replace files with other files in browser and server. |
 | `deleteOutputPath` | boolean | false | Delete the output path before building. |
-| `fileLoaderEmitFile` | boolean | false | File loader emit file. |
-| `bundleDependenciesWhitelist` | string[] | | Array of RegExp patterns to match require request of dependencies to bundle. |
 | `verbose` | boolean | false | Adds more details to output logging. |
 
 ### udk:udk-runner
@@ -41,7 +39,7 @@ When udk-builder is configured:
 
 ```diff
 diff --git a/angular.json b/angular.json
-index 4fcecd1..e30db3b 100644
+index 4fcecd1..0097eb6 100644
 --- a/angular.json
 +++ b/angular.json
 @@ -15,9 +15,23 @@
@@ -69,7 +67,7 @@ index 4fcecd1..e30db3b 100644
              "index": "src/index.html",
              "main": "src/main.ts",
              "polyfills": "src/polyfills.ts",
-@@ -63,21 +77,52 @@
+@@ -63,21 +77,56 @@
              }
            }
          },
@@ -102,7 +100,11 @@ index 4fcecd1..e30db3b 100644
 +          "options": {
 +            "universalTarget": "app:build"
 +          },
-+          "configurations": {}
++          "configurations": {
++            "spa": {
++              "universalTarget": "app:build:spa"
++            }
++          }
 +        },
 +        "serve-spa": {
            "builder": "@angular-devkit/build-angular:dev-server",
@@ -125,7 +127,7 @@ index 4fcecd1..e30db3b 100644
            }
          },
          "test": {
-@@ -114,11 +159,11 @@
+@@ -114,11 +163,11 @@
            "builder": "@angular-devkit/build-angular:protractor",
            "options": {
              "protractorConfig": "e2e/protractor.conf.js",

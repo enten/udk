@@ -15,7 +15,7 @@
     },
     "bundleDependenciesWhitelist": {
       "type": "array",
-      "description": "Array of RegExp patterns to match require request of dependencies to bundle.",
+      "description": "DEPRECATED use \"externalDependencies\" in server builder",
       "items": {
         "type": "string"
       }
@@ -27,7 +27,7 @@
     },
     "fileLoaderEmitFile": {
       "type": "boolean",
-      "description": "File loader emit file.",
+      "description": "DEPRECATED server builder doesn't emit any file since angular v9",
       "default": false
     },
     "fileReplacements": {

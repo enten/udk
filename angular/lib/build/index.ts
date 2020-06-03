@@ -38,6 +38,16 @@ export async function ngUniversalBuild(
     throw new Error('The builder requires a target.');
   }
 
+  if (options.bundleDependenciesWhitelist?.length) {
+    // tslint:disable-next-line: max-line-length
+    context.logger.warn(`Option "bundleDependenciesWhitelist" is deprecated: use "externalDependencies" in server builder`);
+  }
+
+  if (options.fileLoaderEmitFile) {
+    // tslint:disable-next-line: max-line-length
+    context.logger.warn(`Option "fileLoaderEmitFile" is deprecated: server builder doesn't emit any file since angular v9`);
+  }
+
   context.reportStatus(`Executing...`);
 
   const host = new NodeJsSyncHost();

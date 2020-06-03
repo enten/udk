@@ -19,7 +19,6 @@ import { NodeJsSyncHost } from '@angular-devkit/core/node';
 import {
   getAotConfig,
   getCommonConfig,
-  getOutputHashFormat,
   getServerConfig,
   getStatsConfig,
   getStylesConfig,
@@ -104,7 +103,6 @@ import { getEmittedFiles } from '@angular-devkit/build-webpack/src/utils';
 // #region local imports
 
 import { requireModule } from '../../../lib/util/requireModule';
-import PostcssCliResources from './postcss-cli-resources.server';
 import {
   BrowserBuilderInitContext,
   BrowserBuilderOptions,
@@ -817,9 +815,6 @@ export async function initializeServerBuilder(
     ],
   );
 
-  setWebpackServerFileLoaderEmitFile(universalOptions, serverOptions, browserOptions, serverConfig);
-  setWebpackServerExternals(universalOptions, serverConfig);
-
   const config = await applyWebpackPartialConfig(
     serverConfig,
     universalOptions.partialServerConfig as string,
@@ -892,148 +887,6 @@ export function createServerBuilderFinalizer(
       outputPaths: outputPaths ? outputPaths.values() : [baseOutputPath],
     } as ServerBuilderOutput;
   };
-}
-
-export function setWebpackServerExternals(
-  universalOptions: UniversalBuildOptions,
-  serverConfig: webpack.Configuration,
-): void {
-  const externals = serverConfig.externals as webpack.ExternalsElement[];
-  const lastExternalIndex = externals.length - 1;
-
-  // note(enten): angular server model declare an array with a function filter as last item
-  // when server option `bundleDependencies` is false.
-  //
-  // When function filter is missing, that means server option `bundleDependencies` is true.
-  // In this case, universal option `bundleDependenciesWhitelist` can be ignored because
-  // we want to bundle all dependencies except server option `externalDependencies` (which
-  // are already set into webpack server config `externals`).
-  //
-  // tslint:disable-next-line: max-line-length
-  // @see v9.0.0-rc.5/packages/angular_devkit/build_angular/src/angular-cli-files/models/webpack-configs/server.ts#L42
-  // tslint:disable-next-line: max-line-length
-  // @see v9.0.0-rc.6/packages/angular_devkit/build_angular/src/angular-cli-files/models/webpack-configs/server.ts#L49
-  if (!externals || typeof externals[lastExternalIndex] !== 'function') {
-    return;
-  }
-
-  const angularServerExternalsFn = externals.pop() as webpack.ExternalsFunctionElement;
-
-  const whitelistStrings = [...(universalOptions.bundleDependenciesWhitelist || [])];
-
-  if (!whitelistStrings.includes('^@angular/')) {
-    whitelistStrings.push('^@angular/');
-  }
-
-  if (!whitelistStrings.includes('^@nguniversal/')) {
-    whitelistStrings.push('^@nguniversal/');
-  }
-
-  const whitelistPatterns = whitelistStrings.map(whitelistPattern => new RegExp(whitelistPattern))
-  const isWhitelisted: (request: string) => boolean = request => {
-    for (const whitelistPattern of whitelistPatterns) {
-      if (whitelistPattern.test(request)) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  externals[lastExternalIndex] = (
-    context: string,
-    request: string,
-    callback: (error?: null, result?: string) => void,
-  ) => {
-    if (isWhitelisted(request)) {
-      callback();
-    } else {
-      angularServerExternalsFn(context, request, callback);
-    }
-  };
-}
-
-export function setWebpackServerFileLoaderEmitFile(
-  universalOptions: UniversalBuildOptions,
-  serverOptions: ServerBuilderOptions,
-  browserOptions: BrowserBuilderOptions,
-  webpackConfig: webpack.Configuration,
-): void {
-  const emitFile = !!universalOptions.fileLoaderEmitFile;
-  const fileLoader = webpackConfig.module
-    && webpackConfig.module.rules
-    && webpackConfig.module.rules.find(rule => rule.loader === 'file-loader');
-
-  if (fileLoader) {
-    if (fileLoader.options) {
-      (fileLoader.options as { emitFile: boolean }).emitFile = emitFile;
-    } else {
-      fileLoader.options = { emitFile: emitFile };
-    }
-  }
-
-  if (emitFile || !webpackConfig.module) {
-    return;
-  }
-
-  // fix: avoid extract css files when value is false
-
-  // Determine hashing format.
-  const hashFormat = getOutputHashFormat(serverOptions.outputHashing as string);
-
-  const autoprefixer = require('autoprefixer');
-  const postcssImports = require('postcss-import');
-
-  const udkPostcssPluginCreator = (loader: webpack.loader.LoaderContext) => [
-    postcssImports({
-      resolve: (url: string) => (url.startsWith('~') ? url.substr(1) : url),
-      load: (filename: string) => {
-        return new Promise<string>((resolve, reject) => {
-          loader.fs.readFile(filename, (err: Error, data: Buffer) => {
-            if (err) {
-              reject(err);
-
-              return;
-            }
-
-            const content = data.toString();
-            resolve(content);
-          });
-        });
-      },
-    }),
-    PostcssCliResources({
-      baseHref: browserOptions.baseHref,
-      deployUrl: browserOptions.deployUrl,
-      resourcesOutputPath: browserOptions.resourcesOutputPath,
-      loader,
-      rebaseRootRelative: browserOptions.rebaseRootRelativeCssUrls,
-      filename: `[name]${hashFormat.file}.[ext]`,
-    }),
-    autoprefixer(),
-  ];
-
-  for (const rule of webpackConfig.module.rules) {
-    if (!rule || !rule.test || !(rule.test instanceof RegExp) || !rule.use) {
-      continue;
-    }
-
-    if (!rule.test.test('.scss') && !rule.test.test('.less') && !rule.test.test('.styl')) {
-      continue;
-    }
-
-    // tslint:disable-next-line: max-line-length
-    const postcssLoader = (rule.use as webpack.RuleSetLoader[]).find((ruleUse: webpack.RuleSetLoader) => {
-      return !!ruleUse.loader && ruleUse.loader.indexOf('postcss-loader') !== -1;
-    });
-
-    if (!postcssLoader) {
-        continue;
-    }
-
-    // tslint:disable-next-line: no-any
-    (postcssLoader.options as { [k: string]: any }).plugins = udkPostcssPluginCreator;
-  }
 }
 
 // #endregion server builder

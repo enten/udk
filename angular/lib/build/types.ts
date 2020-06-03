@@ -33,7 +33,7 @@ export interface UniversalBuildOptions {
    */
   serverTarget: string;
   /**
-   * Array of RegExp patterns to match require request of dependencies to bundle.
+   * DEPRECATED use "externalDependencies" in server builder
    */
   bundleDependenciesWhitelist?: string[];
   /**
@@ -41,7 +41,7 @@ export interface UniversalBuildOptions {
    */
   deleteOutputPath?: boolean;
   /**
-   * File loader emit file
+   * DEPRECATED server builder doesn't emit any file since angular v9
    */
   fileLoaderEmitFile?: boolean;
   /**
