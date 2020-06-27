@@ -1,7 +1,7 @@
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
 	Author Tobias Koppers @sokra
-	Version 3e03edc on Jul 9, 2018
+	Version 7b07a8d on Mar 28, 2020
 */
 /*globals __resourceQuery */
 if (module.hot) {
@@ -12,7 +12,7 @@ if (module.hot) {
 		if (module.hot.status() === "idle") {
 			module.hot
 				.check(true)
-				.then(function(updatedModules) {
+				.then(function (updatedModules) {
 					if (!updatedModules) {
 						if (fromUpdate) log("info", "[HMR] Update applied.");
 						return;
@@ -20,11 +20,11 @@ if (module.hot) {
 					require("webpack/hot/log-apply-result")(updatedModules, updatedModules);
 					checkForUpdate(true);
 				})
-				.catch(function(err) {
+				.catch(function (err) {
 					var status = module.hot.status();
 					if (["abort", "fail"].indexOf(status) >= 0) {
 						log("warning", "[HMR] Cannot apply update.");
-						log("warning", "[HMR] " + (err.stack || err.message));
+						log("warning", "[HMR] " + (log.formatError ? log.formatError(err) : (err.stack || err.message)));
 						log("warning", "[HMR] You need to restart the application!");
 						// <udk patch>
 						if (process.send) {
@@ -33,10 +33,7 @@ if (module.hot) {
 						}
 						// </udk patch>
 					} else {
-						log(
-							"warning",
-							"[HMR] Update failed: " + (err.stack || err.message)
-						);
+						log("warning", "[HMR] Update failed: " + (log.formatError ? log.formatError(err) : (err.stack || err.message)));
 					}
 				});
 		}

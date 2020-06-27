@@ -25,6 +25,13 @@ import {
   normalizeExtraEntryPoints,
 } from '@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs';
 import {
+  markAsyncChunksNonInitial,
+} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/async-chunks';
+import {
+  ThresholdSeverity,
+  checkBudgets,
+} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/bundle-calculator';
+import {
   IndexHtmlTransform,
   writeIndexHtml,
 } from '@angular-devkit/build-angular/src/angular-cli-files/utilities/index-file/write-index-html';
@@ -92,6 +99,9 @@ import {
   ProcessBundleResult,
 } from '@angular-devkit/build-angular/src/utils/process-bundle';
 import {
+  urlJoin,
+} from '@angular-devkit/build-angular/src/utils/url';
+import {
   generateI18nBrowserWebpackConfigFromContext,
   getIndexInputFile,
   getIndexOutputFile,
@@ -153,6 +163,7 @@ export async function getUniversalTargetOptions<K extends keyof UniversalTargetO
     const serverOptions = platformOptions as ServerBuilderOptions;
 
     if (typeof serverOptions.bundleDependencies === 'string') {
+      // tslint:disable-next-line: no-any
       serverOptions.bundleDependencies = (serverOptions.bundleDependencies === 'all') as any;
       // tslint:disable-next-line: max-line-length
       context.logger.warn(`Server option 'bundleDependencies' string value is deprecated since version 9. Use a boolean value instead.`);
@@ -188,13 +199,16 @@ export async function initializeBrowserBuilder(
   context: BuilderContext,
   host: virtualFs.Host<fs.Stats>,
 ): Promise<BrowserBuilderInitContext> {
+  // Assets are processed directly by the builder except when watching
+  const adjustedOptions = browserOptions.watch ? browserOptions : { ...browserOptions, assets: [] };
+
   const {
     config: browserConfig,
     projectRoot,
     projectSourceRoot,
     i18n,
   } = await buildBrowserWebpackConfigFromContext(
-    browserOptions,
+    adjustedOptions,
     // @hack: trick generateWebpackConfig to support differential loading
     // v9.0.0-rc.5/packages/angular_devkit/build_angular/src/utils/webpack-browser-config.ts#L74
     {
@@ -207,6 +221,21 @@ export async function initializeBrowserBuilder(
     host,
     true,
   );
+
+  // Validate asset option values if processed directly
+  if (browserOptions.assets?.length && !adjustedOptions.assets?.length) {
+    normalizeAssetPatterns(
+      browserOptions.assets,
+      new virtualFs.SyncDelegateHost(host),
+      normalize(context.workspaceRoot),
+      normalize(projectRoot),
+      projectSourceRoot === undefined ? undefined : normalize(projectSourceRoot),
+    ).forEach(({ output }) => {
+      if (output.startsWith('..')) {
+        throw new Error('An asset cannot be written to a location outside of the output path.');
+      }
+    });
+  }
 
   const config = await applyWebpackPartialConfig(
     browserConfig,
@@ -243,10 +272,17 @@ export async function initializeBrowserBuilder(
     isDifferentialLoadingNeeded,
     target,
     useBundleDownleveling,
+    buildBrowserFeatures,
   };
 }
 
-// source: v9.0.0-rc.5/packages/angular_devkit/build_angular/src/browser/index.ts#L267
+// source: v10.0.0/packages/angular_devkit/build_angular/src/browser/index.ts#L815
+function assertNever(input: never): never {
+  throw new Error(`Unexpected call to assertNever() with input: ${
+      JSON.stringify(input, null /* replacer */, 4 /* tabSize */)}`);
+}
+
+// source: v10.0.0/packages/angular_devkit/build_angular/src/browser/index.ts#L269
 // tslint:disable-next-line: no-big-function
 export function createBrowserBuilderFinalizer(
   context: BuilderContext,
@@ -259,6 +295,7 @@ export function createBrowserBuilderFinalizer(
     isDifferentialLoadingNeeded,
     target,
     useBundleDownleveling,
+    buildBrowserFeatures,
   }: BrowserBuilderInitContext,
 ): (startTime: number, buildEvent: BuildResult) => Promise<BrowserBuilderOutput> {
   const root = normalize(context.workspaceRoot);
@@ -266,10 +303,18 @@ export function createBrowserBuilderFinalizer(
 
   // tslint:disable-next-line: no-big-function
   return async (startTime, buildEvent) => {
-    const { webpackStats, success, emittedFiles = [] } = buildEvent;
-    if (!webpackStats) {
+    const { webpackStats: webpackRawStats, success, emittedFiles = [] } = buildEvent;
+    if (!webpackRawStats) {
       throw new Error('Webpack stats build result is required.');
     }
+
+    // Fix incorrectly set `initial` value on chunks.
+    const extraEntryPoints = normalizeExtraEntryPoints(options.styles || [], 'styles')
+        .concat(normalizeExtraEntryPoints(options.scripts || [], 'scripts'));
+    const webpackStats = {
+      ...webpackRawStats,
+      chunks: markAsyncChunksNonInitial(webpackRawStats, extraEntryPoints),
+    };
 
     let outputPaths: undefined | Map<string, string>;
 
@@ -355,7 +400,7 @@ export function createBrowserBuilderFinalizer(
               }
               workerReplacements.push([
                 file.file,
-                file.file.replace(/\-es20\d{2}/, '-es5'),
+                file.file.replace(/\-(es20\d{2}|esnext)/, '-es5'),
               ]);
             } else {
               continue;
@@ -386,17 +431,9 @@ export function createBrowserBuilderFinalizer(
           }
 
           // All files at this point except ES5 polyfills are module scripts
-          const es5Polyfills =
-            file.file.startsWith('polyfills-es5') ||
-            file.file.startsWith('polyfills-nomodule-es5');
+          const es5Polyfills = file.file.startsWith('polyfills-es5');
           if (!es5Polyfills) {
             moduleFiles.push(file);
-          }
-          // If not optimizing then ES2015 polyfills do not need processing
-          // Unlike other module scripts, it is never downleveled
-          const es2015Polyfills = file.file.startsWith('polyfills-es20');
-          if (!actionOptions.optimize && es2015Polyfills) {
-            continue;
           }
 
           // Retrieve the content/map for the file
@@ -418,6 +455,8 @@ export function createBrowserBuilderFinalizer(
             fs.unlinkSync(filename);
             filename = filename.replace(/\-es20\d{2}/, '');
           }
+
+          const es2015Polyfills = file.file.startsWith('polyfills-es20');
 
           // Record the bundle processing action
           // The runtime chunk gets special processing for lazy loaded files
@@ -442,7 +481,7 @@ export function createBrowserBuilderFinalizer(
           // Add the newly created ES5 bundles to the index as nomodule scripts
           const newFilename = es5Polyfills
             ? file.file.replace(/\-es20\d{2}/, '')
-            : file.file.replace(/\-es20\d{2}/, '-es5');
+            : file.file.replace(/\-(es20\d{2}|esnext)/, '-es5');
           noModuleFiles.push({ ...file, file: newFilename });
         }
 
@@ -477,6 +516,7 @@ export function createBrowserBuilderFinalizer(
             const runtimeOptions = {
               ...processRuntimeAction,
               runtimeData: processResults,
+              supportedBrowsers: buildBrowserFeatures.supportedBrowsers,
             };
             processResults.push(
               await import('@angular-devkit/build-angular/src/utils/process-bundle')
@@ -505,6 +545,9 @@ export function createBrowserBuilderFinalizer(
                   setLocale: result.name === mainChunkId,
                 });
                 processedFiles.add(result.original.filename);
+                if (result.original.map) {
+                  processedFiles.add(result.original.map.filename);
+                }
               }
               if (result.downlevel) {
                 inlineActions.push({
@@ -519,6 +562,9 @@ export function createBrowserBuilderFinalizer(
                   setLocale: result.name === mainChunkId,
                 });
                 processedFiles.add(result.downlevel.filename);
+                if (result.downlevel.map) {
+                  processedFiles.add(result.downlevel.map.filename);
+                }
               }
             }
 
@@ -575,27 +621,6 @@ export function createBrowserBuilderFinalizer(
           executor.stop();
         }
 
-        // Copy assets
-        if (options.assets) {
-          try {
-            await copyAssets(
-              normalizeAssetPatterns(
-                options.assets,
-                new virtualFs.SyncDelegateHost(host),
-                root,
-                normalize(projectRoot),
-                projectSourceRoot === undefined ? undefined : normalize(projectSourceRoot),
-              ),
-              Array.from(outputPaths.values()),
-              context.workspaceRoot,
-            );
-          } catch (err) {
-            context.logger.error('Unable to copy assets: ' + err.message);
-
-            return finalize(false);
-          }
-        }
-
         type ArrayElement<A> = A extends ReadonlyArray<infer T> ? T : never;
         function generateBundleInfoStats(
           id: string | number,
@@ -617,35 +642,30 @@ export function createBrowserBuilderFinalizer(
         }
 
         let bundleInfoText = '';
-        const processedNames = new Set<string>();
         for (const result of processResults) {
-          processedNames.add(result.name);
+          const chunk = webpackStats.chunks
+              && webpackStats.chunks.find((chunk) => chunk.id.toString() === result.name);
 
-          const chunk =
-            webpackStats &&
-            webpackStats.chunks &&
-            webpackStats.chunks.find(c => result.name === c.id.toString());
           if (result.original) {
             bundleInfoText +=
               '\n' + generateBundleInfoStats(result.name, result.original, chunk);
           }
+
           if (result.downlevel) {
             bundleInfoText +=
               '\n' + generateBundleInfoStats(result.name, result.downlevel, chunk);
           }
         }
 
-        if (webpackStats && webpackStats.chunks) {
-          for (const chunk of webpackStats.chunks) {
-            if (processedNames.has(chunk.id.toString())) {
-              continue;
-            }
-
-            const asset =
+        const unprocessedChunks = webpackStats.chunks && webpackStats.chunks
+            .filter((chunk) => !processResults
+                .find((result) => chunk.id.toString() === result.name),
+            ) || [];
+        for (const chunk of unprocessedChunks) {
+          const asset =
               webpackStats.assets && webpackStats.assets.find(a => a.name === chunk.files[0]);
-            bundleInfoText +=
-              '\n' + generateBundleStats({ ...chunk, size: asset && asset.size }, true);
-          }
+          bundleInfoText +=
+            '\n' + generateBundleStats({ ...chunk, size: asset && asset.size }, true);
         }
 
         bundleInfoText +=
@@ -656,11 +676,32 @@ export function createBrowserBuilderFinalizer(
             true,
           );
         context.logger.info(bundleInfoText);
+
+        // Check for budget errors and display them to the user.
+        const budgets = options.budgets || [];
+        const budgetFailures = checkBudgets(budgets, webpackStats, processResults);
+        for (const {severity, message} of budgetFailures) {
+          const msg = `budgets: ${message}`;
+          switch (severity) {
+            case ThresholdSeverity.Warning:
+              webpackStats.warnings.push(msg);
+              break;
+            case ThresholdSeverity.Error:
+              webpackStats.errors.push(msg);
+              break;
+            default:
+              assertNever(severity);
+              break;
+          }
+        }
+
         if (webpackStats && webpackStats.warnings.length > 0) {
           context.logger.warn(statsWarningsToString(webpackStats, { colors: true }));
         }
         if (webpackStats && webpackStats.errors.length > 0) {
           context.logger.error(statsErrorsToString(webpackStats, { colors: true }));
+
+          return finalize(false);
         }
       } else {
         files = emittedFiles.filter(x => x.name !== 'polyfills-es5');
@@ -684,15 +725,34 @@ export function createBrowserBuilderFinalizer(
         }
       }
 
+      // Copy assets
+      if (!options.watch && options.assets) {
+        try {
+          await copyAssets(
+            normalizeAssetPatterns(
+              options.assets,
+              new virtualFs.SyncDelegateHost(host),
+              root,
+              normalize(projectRoot),
+              projectSourceRoot === undefined ? undefined : normalize(projectSourceRoot),
+            ),
+            Array.from(outputPaths.values()),
+            context.workspaceRoot,
+          );
+        } catch (err) {
+          context.logger.error('Unable to copy assets: ' + err.message);
+
+          return finalize(false);
+        }
+      }
+
       if (options.index) {
         for (const [locale, outputPath] of outputPaths.entries()) {
           let localeBaseHref;
           if (i18n.locales[locale] && i18n.locales[locale].baseHref !== '') {
-            localeBaseHref = path.posix.join(
+            localeBaseHref = urlJoin(
               options.baseHref || '',
-              i18n.locales[locale].baseHref === undefined
-                ? `/${locale}/`
-                : i18n.locales[locale].baseHref as string,
+              i18n.locales[locale].baseHref ?? `/${locale}/`,
             );
           }
 
@@ -717,14 +777,22 @@ export function createBrowserBuilderFinalizer(
       }
 
       if (!options.watch && options.serviceWorker) {
-        for (const outputPath of outputPaths.values()) {
+        for (const [locale, outputPath] of outputPaths.entries()) {
+          let localeBaseHref;
+          if (i18n.locales[locale] && i18n.locales[locale].baseHref !== '') {
+            localeBaseHref = urlJoin(
+              options.baseHref || '',
+              i18n.locales[locale].baseHref ?? `/${locale}/`,
+            );
+          }
+
           try {
             await augmentAppWithServiceWorker(
               host,
               root,
               normalize(projectRoot),
               normalize(outputPath),
-              options.baseHref || '/',
+              localeBaseHref || options.baseHref || '/',
               options.ngswConfigPath,
             );
           } catch (err) {
@@ -840,6 +908,7 @@ export async function initializeServerBuilder(
   };
 }
 
+// source: v10.0.0/packages/angular_devkit/build_angular/src/server/index.ts
 export function createServerBuilderFinalizer(
   context: BuilderContext,
   {
@@ -862,8 +931,7 @@ export function createServerBuilderFinalizer(
 
     const outputPaths = ensureOutputPaths(baseOutputPath, i18n);
 
-    /*const success = */
-    await i18nInlineEmittedFiles(
+    output.success = await i18nInlineEmittedFiles(
       context,
       emittedFiles,
       i18n,

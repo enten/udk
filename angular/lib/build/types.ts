@@ -8,6 +8,7 @@ import webpack = require('webpack');
 import { BuilderOutput } from '@angular-devkit/architect';
 import { Schema as BrowserBuilderOptions } from '@angular-devkit/build-angular/src/browser/schema';
 import { Schema as ServerBuilderOptions } from '@angular-devkit/build-angular/src/server/schema';
+import { BuildBrowserFeatures } from '@angular-devkit/build-angular/src/utils/build-browser-features';
 import { I18nOptions } from '@angular-devkit/build-angular/src/utils/i18n-options';
 import { EmittedFiles } from '@angular-devkit/build-webpack';
 import { json } from '@angular-devkit/core';
@@ -94,6 +95,7 @@ export interface BrowserBuilderInitContext extends BuilderInitContext<BrowserBui
   isDifferentialLoadingNeeded: boolean;
   target: ScriptTarget;
   useBundleDownleveling: boolean;
+  buildBrowserFeatures: BuildBrowserFeatures;
 }
 
 export interface ServerBuilderInitContext extends BuilderInitContext<ServerBuilderOptions> {

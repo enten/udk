@@ -294,7 +294,7 @@ export class DevContainerRuntime extends ContainerRuntime {
 
     /* istanbul ignore else */
     if (value && typeof value === 'object') {
-      value = { enable: true, ...value };
+      value = Object.assign({ enable: true }, value);
     }
 
     let hmr = value as WebpackContainerHMROptions;
