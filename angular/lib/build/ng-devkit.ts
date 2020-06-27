@@ -199,8 +199,8 @@ export async function initializeBrowserBuilder(
   context: BuilderContext,
   host: virtualFs.Host<fs.Stats>,
 ): Promise<BrowserBuilderInitContext> {
-  // Assets are processed directly by the builder except when watching
-  const adjustedOptions = browserOptions.watch ? browserOptions : { ...browserOptions, assets: [] };
+  // Assets are processed directly by the builder browser finalizer
+  const adjustedOptions = { ...browserOptions, assets: [] };
 
   const {
     config: browserConfig,
@@ -223,7 +223,7 @@ export async function initializeBrowserBuilder(
   );
 
   // Validate asset option values if processed directly
-  if (browserOptions.assets?.length && !adjustedOptions.assets?.length) {
+  if (browserOptions.assets?.length) {
     normalizeAssetPatterns(
       browserOptions.assets,
       new virtualFs.SyncDelegateHost(host),
@@ -337,7 +337,7 @@ export function createBrowserBuilderFinalizer(
         context.logger.error(statsErrorsToString(webpackStats, { colors: true }));
       }
 
-      return finalize(success);
+      return finalize(false);
     } else if (success) {
       outputPaths = ensureOutputPaths(baseOutputPath, i18n);
 
@@ -726,7 +726,7 @@ export function createBrowserBuilderFinalizer(
       }
 
       // Copy assets
-      if (!options.watch && options.assets) {
+      if (options.assets) {
         try {
           await copyAssets(
             normalizeAssetPatterns(
