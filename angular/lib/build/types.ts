@@ -94,7 +94,7 @@ export interface BuilderInitContext<T> {
 export interface BrowserBuilderInitContext extends BuilderInitContext<BrowserBuilderOptions> {
   isDifferentialLoadingNeeded: boolean;
   target: ScriptTarget;
-  useBundleDownleveling: boolean;
+  differentialLoadingMode: boolean;
   buildBrowserFeatures: BuildBrowserFeatures;
 }
 

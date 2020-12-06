@@ -1,111 +1,83 @@
 // Copyright (c) 2018 Steven Enten. All rights reserved. Licensed under the MIT license.
 
-// tslint:disable:no-global-tslint-disable no-implicit-dependencies
+// tslint:disable:max-line-length no-any no-global-tslint-disable no-implicit-dependencies
 
 import * as fs from 'fs';
 import * as path from 'path';
 
 import { Observable, TeardownLogic } from 'rxjs';
+import * as textTable from 'text-table';
 import { ScriptTarget } from 'typescript';
 import webpack = require('webpack');
 
 import { BuilderContext, targetFromTargetString } from '@angular-devkit/architect';
 import { BuildResult, EmittedFiles, WebpackLoggingCallback } from '@angular-devkit/build-webpack';
-import { join, json, logging, normalize, tags, terminal, virtualFs } from '@angular-devkit/core';
-import { NodeJsSyncHost } from '@angular-devkit/core/node';
+import { getSystemPath, json, logging, normalize, resolve, tags, virtualFs } from '@angular-devkit/core';
 
 // #region build-angular imports
 
-import {
-  getAotConfig,
-  getCommonConfig,
-  getServerConfig,
-  getStatsConfig,
-  getStylesConfig,
-  normalizeExtraEntryPoints,
-} from '@angular-devkit/build-angular/src/angular-cli-files/models/webpack-configs';
-import {
-  markAsyncChunksNonInitial,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/async-chunks';
-import {
-  ThresholdSeverity,
-  checkBudgets,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/bundle-calculator';
+import { BrowserBuilderOutput, getAnalyticsConfig, getCompilerConfig } from '@angular-devkit/build-angular/src/browser';
+import { ServerBuilderOutput } from '@angular-devkit/build-angular/src/server';
+import { ExecutionTransformer } from '@angular-devkit/build-angular/src/transforms';
+import { BundleActionExecutor } from '@angular-devkit/build-angular/src/utils/action-executor';
+import { BuildBrowserFeatures } from '@angular-devkit/build-angular/src/utils/build-browser-features';
+import { ThresholdSeverity, checkBudgets } from '@angular-devkit/build-angular/src/utils/bundle-calculator';
+import { findCachePath } from '@angular-devkit/build-angular/src/utils/cache-path';
+import { colors as ansiColors, removeColor } from '@angular-devkit/build-angular/src/utils/color';
+import { copyAssets } from '@angular-devkit/build-angular/src/utils/copy-assets';
+import { deleteOutputDir } from '@angular-devkit/build-angular/src/utils/delete-output-dir';
+import { cachingDisabled } from '@angular-devkit/build-angular/src/utils/environment-options';
+import { i18nInlineEmittedFiles } from '@angular-devkit/build-angular/src/utils/i18n-inlining';
+import { I18nOptions } from '@angular-devkit/build-angular/src/utils/i18n-options';
+import { getHtmlTransforms } from '@angular-devkit/build-angular/src/utils/index-file/transforms';
 import {
   IndexHtmlTransform,
   writeIndexHtml,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/index-file/write-index-html';
-import {
-  readTsconfig,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/read-tsconfig';
-import {
-  augmentAppWithServiceWorker,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/service-worker';
-import {
-  generateBuildStats,
-  generateBundleStats,
-  statsErrorsToString,
-  statsToString,
-  statsWarningsToString,
-} from '@angular-devkit/build-angular/src/angular-cli-files/utilities/stats';
-import {
-  BrowserBuilderOutput,
-  buildBrowserWebpackConfigFromContext,
-} from '@angular-devkit/build-angular/src/browser';
-import {
-  ServerBuilderOutput,
-} from '@angular-devkit/build-angular/src/server';
-import {
-  ExecutionTransformer,
-} from '@angular-devkit/build-angular/src/transforms';
-import {
-  BundleActionExecutor,
-} from '@angular-devkit/build-angular/src/utils/action-executor';
-import {
-  BuildBrowserFeatures,
-} from '@angular-devkit/build-angular/src/utils/build-browser-features';
-import { findCachePath } from '@angular-devkit/build-angular/src/utils/cache-path';
-import {
-  copyAssets,
-} from '@angular-devkit/build-angular/src/utils/copy-assets';
-import {
-  deleteOutputDir,
-} from '@angular-devkit/build-angular/src/utils/delete-output-dir';
-import {
-  cachingDisabled,
-} from '@angular-devkit/build-angular/src/utils/environment-options';
-import {
-  i18nInlineEmittedFiles,
-} from '@angular-devkit/build-angular/src/utils/i18n-inlining';
-import {
-  normalizeAssetPatterns,
-} from '@angular-devkit/build-angular/src/utils/normalize-asset-patterns';
-import {
-  NormalizedBrowserBuilderSchema,
-} from '@angular-devkit/build-angular/src/utils/normalize-builder-schema';
-import {
-  normalizeOptimization,
-} from '@angular-devkit/build-angular/src/utils/normalize-optimization';
-import {
-  normalizeSourceMaps,
-} from '@angular-devkit/build-angular/src/utils/normalize-source-maps';
-import {
-  ensureOutputPaths,
-} from '@angular-devkit/build-angular/src/utils/output-paths';
+} from '@angular-devkit/build-angular/src/utils/index-file/write-index-html';
+import { normalizeAssetPatterns } from '@angular-devkit/build-angular/src/utils/normalize-asset-patterns';
+import { NormalizedBrowserBuilderSchema } from '@angular-devkit/build-angular/src/utils/normalize-builder-schema';
+import { normalizeOptimization } from '@angular-devkit/build-angular/src/utils/normalize-optimization';
+import { normalizeSourceMaps } from '@angular-devkit/build-angular/src/utils/normalize-source-maps';
+import { ensureOutputPaths } from '@angular-devkit/build-angular/src/utils/output-paths';
 import {
   InlineOptions,
   ProcessBundleFile,
   ProcessBundleOptions,
   ProcessBundleResult,
 } from '@angular-devkit/build-angular/src/utils/process-bundle';
-import {
-  urlJoin,
-} from '@angular-devkit/build-angular/src/utils/url';
+import { readTsconfig } from '@angular-devkit/build-angular/src/utils/read-tsconfig';
+import { augmentAppWithServiceWorker } from '@angular-devkit/build-angular/src/utils/service-worker';
+import { Spinner } from '@angular-devkit/build-angular/src/utils/spinner';
+import { urlJoin } from '@angular-devkit/build-angular/src/utils/url';
 import {
   generateI18nBrowserWebpackConfigFromContext,
   getIndexInputFile,
   getIndexOutputFile,
 } from '@angular-devkit/build-angular/src/utils/webpack-browser-config';
+import { isWebpackFiveOrHigher } from '@angular-devkit/build-angular/src/utils/webpack-version';
+import {
+  getAotConfig,
+  getBrowserConfig,
+  getCommonConfig,
+  getServerConfig,
+  getStatsConfig,
+  getStylesConfig,
+  getWorkerConfig,
+  normalizeExtraEntryPoints,
+} from '@angular-devkit/build-angular/src/webpack/configs';
+import { markAsyncChunksNonInitial } from '@angular-devkit/build-angular/src/webpack/utils/async-chunks';
+import {
+  BundleStats,
+  BundleStatsData,
+  ChunkType,
+  formatSize,
+  generateBundleStats,
+  statsErrorsToString,
+  statsHasErrors,
+  statsHasWarnings,
+  statsWarningsToString,
+  // webpackStatsLogger,
+} from '@angular-devkit/build-angular/src/webpack/utils/stats';
 import { getEmittedFiles } from '@angular-devkit/build-webpack/src/utils';
 
 // #endregion build-angular imports
@@ -127,7 +99,7 @@ import {
 
 // #region exports from build-angular
 
-// source: master/packages/angular_devkit/build_angular/src/browser/index.ts#L74
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L82
 export const cacheDownlevelPath = cachingDisabled ? undefined : findCachePath('angular-build-dl');
 
 // #endregion exports from build-angular
@@ -199,31 +171,86 @@ export async function initializeBrowserBuilder(
   context: BuilderContext,
   host: virtualFs.Host<fs.Stats>,
 ): Promise<BrowserBuilderInitContext> {
+  // https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L216
+
+  const projectName = context.target?.project;
+  if (!projectName) {
+    throw new Error('The builder requires a target.');
+  }
+
+  const projectMetadata = await context.getProjectMetadata(projectName);
+
+  const sysProjectRoot = getSystemPath(
+    resolve(normalize(context.workspaceRoot),
+    normalize((projectMetadata.root as string) ?? '')),
+  );
+
+  const { options: compilerOptions } = readTsconfig(browserOptions.tsConfig, context.workspaceRoot);
+  const target = compilerOptions.target || ScriptTarget.ES5;
+  const buildBrowserFeatures = new BuildBrowserFeatures(sysProjectRoot);
+  const isDifferentialLoadingNeeded = buildBrowserFeatures.isDifferentialLoadingNeeded(target);
+  const differentialLoadingMode = !browserOptions.watch && isDifferentialLoadingNeeded;
+
+  if (target > ScriptTarget.ES2015 && isDifferentialLoadingNeeded) {
+    context.logger.warn(tags.stripIndent`
+    Warning: Using differential loading with targets ES5 and ES2016 or higher may
+    cause problems. Browsers with support for ES2015 will load the ES2016+ scripts
+    referenced with script[type="module"] but they may not support ES2016+ syntax.
+  `);
+  }
+
+  const hasIE9 = buildBrowserFeatures.supportedBrowsers.includes('ie 9');
+  const hasIE10 = buildBrowserFeatures.supportedBrowsers.includes('ie 10');
+  if (hasIE9 || hasIE10) {
+    const browsers =
+      (hasIE9 ? 'IE 9' + (hasIE10 ? ' & ' : '') : '') + (hasIE10 ? 'IE 10' : '');
+    context.logger.warn(
+      `Warning: Support was requested for ${browsers} in the project's browserslist configuration. ` +
+        (hasIE9 && hasIE10 ? 'These browsers are' : 'This browser is') +
+        ' no longer officially supported with Angular v11 and higher.' +
+        '\nFor additional information: https://v10.angular.io/guide/deprecations#ie-9-10-and-mobile',
+    );
+  }
+
+  // https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L129
+
+  const originalOutputPath = browserOptions.outputPath;
+
   // Assets are processed directly by the builder browser finalizer
   const adjustedOptions = { ...browserOptions, assets: [] };
+
+  // TODO_WEBPACK_5: Investigate build/serve issues with the `license-webpack-plugin` package
+  if (adjustedOptions.extractLicenses && isWebpackFiveOrHigher()) {
+    adjustedOptions.extractLicenses = false;
+    context.logger.warn(
+      'Warning: License extraction is currently disabled when using Webpack 5. ' +
+        'This is temporary and will be corrected in a future update.',
+    );
+  }
 
   const {
     config: browserConfig,
     projectRoot,
     projectSourceRoot,
     i18n,
-  } = await buildBrowserWebpackConfigFromContext(
+  } = await generateI18nBrowserWebpackConfigFromContext(
     adjustedOptions,
-    // @hack: trick generateWebpackConfig to support differential loading
-    // v9.0.0-rc.5/packages/angular_devkit/build_angular/src/utils/webpack-browser-config.ts#L74
-    {
-      ...context,
-      builder: {
-        ...context.builder,
-        builderName: 'browser',
-      },
-    },
+    context,
+    wco => [
+      getCommonConfig(wco),
+      getBrowserConfig(wco),
+      getStylesConfig(wco),
+      getStatsConfig(wco),
+      getAnalyticsConfig(wco, context),
+      getCompilerConfig(wco),
+      wco.buildOptions.webWorkerTsConfig ? getWorkerConfig(wco) : {},
+    ],
     host,
-    true,
+    { differentialLoadingMode },
   );
 
   // Validate asset option values if processed directly
-  if (browserOptions.assets?.length) {
+  if (browserOptions.assets?.length && !adjustedOptions.assets?.length) {
     normalizeAssetPatterns(
       browserOptions.assets,
       new virtualFs.SyncDelegateHost(host),
@@ -242,25 +269,8 @@ export async function initializeBrowserBuilder(
     universalOptions.partialBrowserConfig as string,
   );
 
-  const tsConfig = readTsconfig(browserOptions.tsConfig, context.workspaceRoot);
-  const target = tsConfig.options.target || ScriptTarget.ES5;
-  const buildBrowserFeatures = new BuildBrowserFeatures(projectRoot, target);
-  const isDifferentialLoadingNeeded = buildBrowserFeatures.isDifferentialLoadingNeeded();
-  const useBundleDownleveling = isDifferentialLoadingNeeded && !browserOptions.watch;
-
-  if (target > ScriptTarget.ES2015 && isDifferentialLoadingNeeded) {
-    context.logger.warn(tags.stripIndent`
-      WARNING: Using differential loading with targets ES5 and ES2016 or higher may
-      cause problems. Browsers with support for ES2015 will load the ES2016+ scripts
-      referenced with script[type="module"] but they may not support ES2016+ syntax.
-    `);
-  }
-
   if (browserOptions.deleteOutputPath) {
-    deleteOutputDir(
-      context.workspaceRoot,
-      browserOptions.outputPath,
-    );
+    deleteOutputDir(context.workspaceRoot, originalOutputPath);
   }
 
   return {
@@ -271,18 +281,12 @@ export async function initializeBrowserBuilder(
     i18n,
     isDifferentialLoadingNeeded,
     target,
-    useBundleDownleveling,
+    differentialLoadingMode,
     buildBrowserFeatures,
   };
 }
 
-// source: v10.0.0/packages/angular_devkit/build_angular/src/browser/index.ts#L815
-function assertNever(input: never): never {
-  throw new Error(`Unexpected call to assertNever() with input: ${
-      JSON.stringify(input, null /* replacer */, 4 /* tabSize */)}`);
-}
-
-// source: v10.0.0/packages/angular_devkit/build_angular/src/browser/index.ts#L269
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L289
 // tslint:disable-next-line: no-big-function
 export function createBrowserBuilderFinalizer(
   context: BuilderContext,
@@ -294,15 +298,30 @@ export function createBrowserBuilderFinalizer(
     i18n,
     isDifferentialLoadingNeeded,
     target,
-    useBundleDownleveling,
+    differentialLoadingMode,
     buildBrowserFeatures,
   }: BrowserBuilderInitContext,
+  transforms: {
+    webpackConfiguration?: ExecutionTransformer<webpack.Configuration>;
+    logging?: WebpackLoggingCallback;
+    indexHtml?: IndexHtmlTransform;
+  } = {},
 ): (startTime: number, buildEvent: BuildResult) => Promise<BrowserBuilderOutput> {
   const root = normalize(context.workspaceRoot);
   const baseOutputPath = path.resolve(context.workspaceRoot, options.outputPath);
 
+  const normalizedOptimization = normalizeOptimization(options.optimization);
+  const indexTransforms = getHtmlTransforms(
+    normalizedOptimization,
+    buildBrowserFeatures,
+    transforms.indexHtml,
+  );
+
   // tslint:disable-next-line: no-big-function
   return async (startTime, buildEvent) => {
+    const spinner = new Spinner();
+    spinner.enabled = options.progress !== false;
+
     const { webpackStats: webpackRawStats, success, emittedFiles = [] } = buildEvent;
     if (!webpackRawStats) {
       throw new Error('Webpack stats build result is required.');
@@ -310,7 +329,7 @@ export function createBrowserBuilderFinalizer(
 
     // Fix incorrectly set `initial` value on chunks.
     const extraEntryPoints = normalizeExtraEntryPoints(options.styles || [], 'styles')
-        .concat(normalizeExtraEntryPoints(options.scripts || [], 'scripts'));
+      .concat(normalizeExtraEntryPoints(options.scripts || [], 'scripts'));
     const webpackStats = {
       ...webpackRawStats,
       chunks: markAsyncChunksNonInitial(webpackRawStats, extraEntryPoints),
@@ -327,18 +346,19 @@ export function createBrowserBuilderFinalizer(
       outputPaths: outputPaths && Array.from(outputPaths.values()) || [baseOutputPath],
     } as BrowserBuilderOutput);
 
-    if (!success && useBundleDownleveling) {
+    if (!success) {
       // If using bundle downleveling then there is only one build
       // If it fails show any diagnostic messages and bail
-      if (webpackStats && webpackStats.warnings.length > 0) {
+      if (statsHasWarnings(webpackStats)) {
         context.logger.warn(statsWarningsToString(webpackStats, { colors: true }));
       }
-      if (webpackStats && webpackStats.errors.length > 0) {
+      if (statsHasErrors(webpackStats)) {
         context.logger.error(statsErrorsToString(webpackStats, { colors: true }));
       }
 
       return finalize(false);
-    } else if (success) {
+    } else {
+      const bundleInfoStats: BundleStats[] = [];
       outputPaths = ensureOutputPaths(baseOutputPath, i18n);
 
       let noModuleFiles: EmittedFiles[] | undefined;
@@ -379,7 +399,7 @@ export function createBrowserBuilderFinalizer(
         // Common options for all bundle process actions
         const sourceMapOptions = normalizeSourceMaps(options.sourceMap || false);
         const actionOptions: Partial<ProcessBundleOptions> = {
-          optimize: normalizeOptimization(options.optimization).scripts,
+          optimize: normalizedOptimization.scripts,
           sourceMaps: sourceMapOptions.scripts,
           hiddenSourceMaps: sourceMapOptions.hidden,
           vendorSourceMaps: sourceMapOptions.vendor,
@@ -448,7 +468,7 @@ export function createBrowserBuilderFinalizer(
               if (es5Polyfills) {
                 fs.unlinkSync(filename + '.map');
               }
-            } catch {}
+            } catch { }
           }
 
           if (es5Polyfills) {
@@ -505,8 +525,7 @@ export function createBrowserBuilderFinalizer(
 
         // Execute the bundle processing actions
         try {
-          context.logger.info('Generating ES5 bundles for differential loading...');
-
+          spinner.start('Generating ES5 bundles for differential loading...');
           for await (const result of executor.processAll(processActions)) {
             processResults.push(result);
           }
@@ -524,11 +543,10 @@ export function createBrowserBuilderFinalizer(
             );
           }
 
-          context.logger.info('ES5 bundle generation complete.');
+          spinner.succeed('ES5 bundle generation complete.');
 
           if (i18n.shouldInline) {
-            context.logger.info('Generating localized bundles...');
-
+            spinner.start('Generating localized bundles...');
             const inlineActions: InlineOptions[] = [];
             const processedFiles = new Set<string>();
             for (const result of processResults) {
@@ -577,12 +595,14 @@ export function createBrowserBuilderFinalizer(
                   );
                 }
                 for (const diagnostic of result.diagnostics) {
+                  spinner.stop();
                   if (diagnostic.type === 'error') {
                     hasErrors = true;
                     context.logger.error(diagnostic.message);
                   } else {
                     context.logger.warn(diagnostic.message);
                   }
+                  spinner.start();
                 }
               }
 
@@ -604,14 +624,16 @@ export function createBrowserBuilderFinalizer(
                 '',
               );
             } catch (err) {
-              context.logger.error('Localized bundle generation failed: ' + err.message);
+              spinner.fail('Localized bundle generation failed.');
 
-              return finalize(false);
+              return finalize(false, mapErrorToMessage(err));
             }
 
-            context.logger.info(
-              `Localized bundle generation ${hasErrors ? 'failed' : 'complete'}.`,
-            );
+            if (hasErrors) {
+              spinner.fail('Localized bundle generation failed.');
+            } else {
+              spinner.succeed('Localized bundle generation complete.');
+            }
 
             if (hasErrors) {
               return finalize(false);
@@ -620,88 +642,40 @@ export function createBrowserBuilderFinalizer(
         } finally {
           executor.stop();
         }
-
-        type ArrayElement<A> = A extends ReadonlyArray<infer T> ? T : never;
-        function generateBundleInfoStats(
-          id: string | number,
-          bundle: ProcessBundleFile,
-          chunk: ArrayElement<webpack.Stats.ToJsonOutput['chunks']> | undefined,
-        ): string {
-          return generateBundleStats(
-            {
-              id,
-              size: bundle.size,
-              files: bundle.map ? [bundle.filename, bundle.map.filename] : [bundle.filename],
-              names: chunk && chunk.names,
-              entry: !!chunk && chunk.names.includes('runtime'),
-              initial: !!chunk && chunk.initial,
-              rendered: true,
-            },
-            true,
-          );
-        }
-
-        let bundleInfoText = '';
         for (const result of processResults) {
-          const chunk = webpackStats.chunks
-              && webpackStats.chunks.find((chunk) => chunk.id.toString() === result.name);
+          const chunk = webpackStats.chunks?.find((chunk) => chunk.id.toString() === result.name);
 
           if (result.original) {
-            bundleInfoText +=
-              '\n' + generateBundleInfoStats(result.name, result.original, chunk);
+            bundleInfoStats.push(generateBundleInfoStats(result.original, chunk, 'modern'));
           }
 
           if (result.downlevel) {
-            bundleInfoText +=
-              '\n' + generateBundleInfoStats(result.name, result.downlevel, chunk);
+            bundleInfoStats.push(generateBundleInfoStats(result.downlevel, chunk, 'legacy'));
           }
         }
 
-        const unprocessedChunks = webpackStats.chunks && webpackStats.chunks
-            .filter((chunk) => !processResults
-                .find((result) => chunk.id.toString() === result.name),
-            ) || [];
+        const unprocessedChunks = webpackStats.chunks?.filter((chunk) => !processResults
+          .find((result) => chunk.id.toString() === result.name),
+        ) || [];
         for (const chunk of unprocessedChunks) {
-          const asset =
-              webpackStats.assets && webpackStats.assets.find(a => a.name === chunk.files[0]);
-          bundleInfoText +=
-            '\n' + generateBundleStats({ ...chunk, size: asset && asset.size }, true);
+          const asset = webpackStats.assets?.find(a => a.name === chunk.files[0]);
+          bundleInfoStats.push(generateBundleStats({ ...chunk, size: asset?.size }));
         }
-
-        bundleInfoText +=
-          '\n' +
-          generateBuildStats(
-            (webpackStats && webpackStats.hash) || '<unknown>',
-            Date.now() - startTime,
-            true,
-          );
-        context.logger.info(bundleInfoText);
 
         // Check for budget errors and display them to the user.
         const budgets = options.budgets || [];
         const budgetFailures = checkBudgets(budgets, webpackStats, processResults);
-        for (const {severity, message} of budgetFailures) {
-          const msg = `budgets: ${message}`;
+        for (const { severity, message } of budgetFailures) {
           switch (severity) {
             case ThresholdSeverity.Warning:
-              webpackStats.warnings.push(msg);
+              webpackStats.warnings.push(message);
               break;
             case ThresholdSeverity.Error:
-              webpackStats.errors.push(msg);
+              webpackStats.errors.push(message);
               break;
             default:
               assertNever(severity);
-              break;
           }
-        }
-
-        if (webpackStats && webpackStats.warnings.length > 0) {
-          context.logger.warn(statsWarningsToString(webpackStats, { colors: true }));
-        }
-        if (webpackStats && webpackStats.errors.length > 0) {
-          context.logger.error(statsErrorsToString(webpackStats, { colors: true }));
-
-          return finalize(false);
         }
       } else {
         files = emittedFiles.filter(x => x.name !== 'polyfills-es5');
@@ -726,7 +700,8 @@ export function createBrowserBuilderFinalizer(
       }
 
       // Copy assets
-      if (options.assets) {
+      if (!options.watch && options.assets?.length) {
+        spinner.start('Copying assets...');
         try {
           await copyAssets(
             normalizeAssetPatterns(
@@ -739,106 +714,87 @@ export function createBrowserBuilderFinalizer(
             Array.from(outputPaths.values()),
             context.workspaceRoot,
           );
+          spinner.succeed('Copying assets complete.');
         } catch (err) {
-          context.logger.error('Unable to copy assets: ' + err.message);
+          spinner.fail(ansiColors.redBright('Copying of assets failed.'));
 
-          return finalize(false);
+          return finalize(false, 'Unable to copy assets: ' + err.message);
         }
       }
 
-      if (options.index) {
-        for (const [locale, outputPath] of outputPaths.entries()) {
-          let localeBaseHref;
-          if (i18n.locales[locale] && i18n.locales[locale].baseHref !== '') {
-            localeBaseHref = urlJoin(
-              options.baseHref || '',
-              i18n.locales[locale].baseHref ?? `/${locale}/`,
-            );
-          }
+      if (success) {
+        if (options.index) {
+          spinner.start('Generating index html...');
+          for (const [locale, outputPath] of outputPaths.entries()) {
+            try {
+              await writeIndexHtml({
+                host,
+                outputPath: path.join(outputPath, getIndexOutputFile(options.index)),
+                indexPath: path.join(context.workspaceRoot, getIndexInputFile(options.index)),
+                files,
+                noModuleFiles,
+                moduleFiles,
+                baseHref: getLocaleBaseHref(options, i18n, locale) || options.baseHref,
+                deployUrl: options.deployUrl,
+                sri: options.subresourceIntegrity,
+                scripts: options.scripts,
+                styles: options.styles,
+                postTransforms: indexTransforms,
+                crossOrigin: options.crossOrigin,
+                // i18nLocale is used when Ivy is disabled
+                lang: locale || options.i18nLocale,
+              });
+            } catch (error) {
+              spinner.fail('Index html generation failed.');
 
-          try {
-            await generateIndex(
-              outputPath,
-              options,
-              root,
-              files,
-              noModuleFiles,
-              moduleFiles,
-              // transforms.indexHtml,
-              undefined,
-              // i18nLocale is used when Ivy is disabled
-              locale || options.i18nLocale,
-              localeBaseHref || options.baseHref,
-            );
-          } catch (err) {
-            return finalize(false, mapErrorToMessage(err));
+              return finalize(false, mapErrorToMessage(error));
+            }
+
+            spinner.succeed('Index html generation complete.');
+          }
+        }
+
+        if (options.serviceWorker) {
+          spinner.start('Generating service worker...');
+          for (const [locale, outputPath] of outputPaths.entries()) {
+            try {
+              await augmentAppWithServiceWorker(
+                host,
+                root,
+                normalize(projectRoot),
+                normalize(outputPath),
+                getLocaleBaseHref(options, i18n, locale) || options.baseHref || '/',
+                options.ngswConfigPath,
+              );
+            } catch (error) {
+              spinner.fail('Service worker generation failed.');
+
+              return finalize(false, mapErrorToMessage(error));
+            }
+
+            spinner.succeed('Service worker generation complete.');
           }
         }
       }
 
-      if (!options.watch && options.serviceWorker) {
-        for (const [locale, outputPath] of outputPaths.entries()) {
-          let localeBaseHref;
-          if (i18n.locales[locale] && i18n.locales[locale].baseHref !== '') {
-            localeBaseHref = urlJoin(
-              options.baseHref || '',
-              i18n.locales[locale].baseHref ?? `/${locale}/`,
-            );
-          }
-
-          try {
-            await augmentAppWithServiceWorker(
-              host,
-              root,
-              normalize(projectRoot),
-              normalize(outputPath),
-              localeBaseHref || options.baseHref || '/',
-              options.ngswConfigPath,
-            );
-          } catch (err) {
-            return finalize(false, mapErrorToMessage(err));
-          }
-        }
-      }
+      return finalize(!statsHasErrors(webpackStats));
     }
-
-    return finalize(success);
   };
 }
 
-// source: master/packages/angular_devkit/build_angular/src/browser/index.ts#L739
-function generateIndex(
-  baseOutputPath: string,
-  options: BrowserBuilderOptions,
-  root: string,
-  files: EmittedFiles[] | undefined,
-  noModuleFiles: EmittedFiles[] | undefined,
-  moduleFiles: EmittedFiles[] | undefined,
-  transformer?: IndexHtmlTransform,
-  locale?: string,
-  baseHref?: string,
-): Promise<void> {
-  const host = new NodeJsSyncHost();
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L754
+function getLocaleBaseHref(options: { baseHref?: string; }, i18n: I18nOptions, locale: string): string | undefined {
+  if (i18n.locales[locale] && i18n.locales[locale]?.baseHref !== '') {
+    return urlJoin(
+      options.baseHref || '',
+      i18n.locales[locale].baseHref ?? `/${locale}/`,
+    );
+  }
 
-  return writeIndexHtml({
-    host,
-    outputPath: join(normalize(baseOutputPath), getIndexOutputFile(options)),
-    indexPath: join(normalize(root), getIndexInputFile(options)),
-    files,
-    noModuleFiles,
-    moduleFiles,
-    baseHref,
-    deployUrl: options.deployUrl,
-    sri: options.subresourceIntegrity,
-    scripts: options.scripts,
-    styles: options.styles,
-    postTransform: transformer,
-    crossOrigin: options.crossOrigin,
-    lang: locale,
-  }).toPromise();
+  return undefined;
 }
 
-// source: master/packages/angular_devkit/build_angular/src/browser/index.ts#L770
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L766
 function mapErrorToMessage(error: unknown): string | undefined {
   if (error instanceof Error) {
     return error.message;
@@ -851,16 +807,73 @@ function mapErrorToMessage(error: unknown): string | undefined {
   return undefined;
 }
 
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L778
+function assertNever(input: never): never {
+  throw new Error(`Unexpected call to assertNever() with input: ${
+      JSON.stringify(input, null /* replacer */, 4 /* tabSize */)}`);
+}
+
+// tslint:disable-next-line: max-line-length
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L783
+type ArrayElement<A> = A extends ReadonlyArray<infer T> ? T : never;
+function generateBundleInfoStats(
+  bundle: ProcessBundleFile,
+  chunk: ArrayElement<webpack.Stats.ToJsonOutput['chunks']> | undefined,
+  chunkType: ChunkType,
+): BundleStats {
+  return generateBundleStats(
+    {
+      size: bundle.size,
+      files: bundle.map ? [bundle.filename, bundle.map.filename] : [bundle.filename],
+      names: chunk?.names,
+      entry: !!chunk?.names.includes('runtime'),
+      initial: !!chunk?.initial,
+      rendered: true,
+      chunkType,
+    },
+  );
+}
+
 // #endregion browser builder
 
 // #region server builder
 
+// https://github.com/angular/angular-cli/blob/master/packages/angular_devkit/build_angular/src/server/index.ts#L46
 export async function initializeServerBuilder(
   universalOptions: UniversalBuildOptions,
   browserOptions: BrowserBuilderOptions,
   serverOptions: ServerBuilderOptions,
   context: BuilderContext,
 ): Promise<ServerBuilderInitContext> {
+  const root = context.workspaceRoot;
+
+  const tsConfig = readTsconfig(serverOptions.tsConfig, root);
+  const target = tsConfig.options.target || ScriptTarget.ES5;
+
+  if (typeof serverOptions.bundleDependencies === 'string') {
+    serverOptions.bundleDependencies = serverOptions.bundleDependencies === 'all';
+    context.logger.warn(`Option 'bundleDependencies' string value is deprecated since version 9. Use a boolean value instead.`);
+  }
+
+  if (!serverOptions.bundleDependencies && tsConfig.options.enableIvy) {
+    // tslint:disable-next-line: no-implicit-dependencies
+    const { __processed_by_ivy_ngcc__, main = '' } = require('@angular/core/package.json');
+    if (
+      !__processed_by_ivy_ngcc__ ||
+      !__processed_by_ivy_ngcc__.main ||
+      (main as string).includes('__ivy_ngcc__')
+    ) {
+      context.logger.warn(tags.stripIndent`
+      Warning: Turning off 'bundleDependencies' with Ivy may result in undefined behaviour
+      unless 'node_modules' are transformed using the standalone Angular compatibility compiler (NGCC).
+      See: http://v9.angular.io/guide/ivy#ivy-and-universal-app-shell
+    `);
+    }
+  }
+
+  // https://github.com/angular/angular-cli/blob/master/packages/angular_devkit/build_angular/src/server/index.ts#L143
+
+  const originalOutputPath = serverOptions.outputPath;
   const {
     config: serverConfig,
     projectRoot,
@@ -888,13 +901,10 @@ export async function initializeServerBuilder(
     universalOptions.partialServerConfig as string,
   );
 
-  const tsConfig = readTsconfig(serverOptions.tsConfig, context.workspaceRoot);
-  const target = tsConfig.options.target || ScriptTarget.ES5;
-
   if (serverOptions.deleteOutputPath) {
     deleteOutputDir(
       context.workspaceRoot,
-      serverOptions.outputPath,
+      originalOutputPath,
     );
   }
 
@@ -908,7 +918,7 @@ export async function initializeServerBuilder(
   };
 }
 
-// source: v10.0.0/packages/angular_devkit/build_angular/src/server/index.ts
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/server/index.ts#L94
 export function createServerBuilderFinalizer(
   context: BuilderContext,
   {
@@ -1060,6 +1070,28 @@ export function runUniversalWebpackCompiler(
   });
 }
 
+export async function applyWebpackPartialConfig(
+  config: webpack.Configuration,
+  partialTransformConfigPath: string,
+) {
+  if (!partialTransformConfigPath) {
+    return config;
+  }
+
+  const configTransformer = requireModule<ExecutionTransformer<webpack.Configuration>>(
+    partialTransformConfigPath,
+  );
+
+  if (typeof configTransformer !== 'function') {
+    // tslint:disable-next-line: max-line-length
+    throw new Error(`Partial webpack config transformer ${partialTransformConfigPath} invalid: must return a function`);
+  }
+
+  const transformedConfig = await configTransformer(config);
+
+  return transformedConfig || config;
+}
+
 export function adaptWebpackLoggingCallback(logFn: WebpackLoggingCallback) {
   return (
     multiStats: webpack.Stats | webpack.compilation.MultiStats,
@@ -1115,7 +1147,7 @@ export function createLoggingCallback(
     let statsTitle = '';
     if (configName) {
       statsTitle = 'Name: '
-        + (options.colors ? terminal.bold(configName) : configName)
+        + (options.colors ? ansiColors.bold(configName) : configName)
         + (options.verbose ? '\n' : '');
     }
 
@@ -1136,31 +1168,177 @@ export function createLoggingCallback(
     }
 
     logger.info('');
+    /*
+    export function webpackStatsLogger(
+      logger: logging.LoggerApi,
+      json: Stats.ToJsonOutput,
+      config: Configuration,
+      bundleStats?: BundleStats[],
+    ): void {
+      logger.info(statsToString(json, config.stats, bundleStats));
+
+      if (statsHasWarnings(json)) {
+        logger.warn(statsWarningsToString(json, config.stats));
+      }
+      if (statsHasErrors(json)) {
+        logger.error(statsErrorsToString(json, config.stats));
+      }
+    };
+    */
   };
 
   return adaptWebpackLoggingCallback(logStats);
 }
 
-export async function applyWebpackPartialConfig(
-  config: webpack.Configuration,
-  partialTransformConfigPath: string,
-) {
-  if (!partialTransformConfigPath) {
-    return config;
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L154
+function generateBuildStats(hash: string, time: number, colors: boolean): string {
+  const w = (x: string) => colors ? ansiColors.bold.white(x) : x;
+  return `Build at: ${w(new Date().toISOString())} - Hash: ${w(hash)} - Time: ${w('' + time)}ms`;
+}
+
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L159
+function statsToString(json: any, statsConfig: any, bundleState?: BundleStats[]): string {
+  const colors = statsConfig.colors;
+  const rs = (x: string) => colors ? ansiColors.reset(x) : x;
+
+  const changedChunksStats: BundleStats[] = bundleState ?? [];
+  let unchangedChunkNumber = 0;
+  if (!bundleState?.length) {
+    for (const chunk of json.chunks) {
+      if (!chunk.rendered) {
+        continue;
+      }
+
+      const assets = json.assets.filter((asset: any) => chunk.files.includes(asset.name));
+      const summedSize = assets.filter((asset: any) => !asset.name.endsWith('.map')).reduce((total: number, asset: any) => (total + asset.size), 0);
+      changedChunksStats.push(generateBundleStats({ ...chunk, size: summedSize }));
+    }
+    unchangedChunkNumber = json.chunks.length - changedChunksStats.length;
   }
 
-  const configTransformer = requireModule<ExecutionTransformer<webpack.Configuration>>(
-    partialTransformConfigPath,
-  );
+  // Sort chunks by size in descending order
+  changedChunksStats.sort((a, b) => {
+    if (a.stats[2] > b.stats[2]) {
+      return -1;
+    }
 
-  if (typeof configTransformer !== 'function') {
-    // tslint:disable-next-line: max-line-length
-    throw new Error(`Partial webpack config transformer ${partialTransformConfigPath} invalid: must return a function`);
+    if (a.stats[2] < b.stats[2]) {
+      return 1;
+    }
+
+    return 0;
+  });
+
+  const statsTable = generateBuildStatsTable(changedChunksStats, colors, unchangedChunkNumber === 0);
+
+  // In some cases we do things outside of webpack context 
+  // Such us index generation, service worker augmentation etc...
+  // This will correct the time and include these.
+  const time = (Date.now() - json.builtAt) + json.time;
+
+  if (unchangedChunkNumber > 0) {
+    return '\n' + rs(tags.stripIndents`
+      ${statsTable}
+      ${unchangedChunkNumber} unchanged chunks
+      ${generateBuildStats(json.hash, time, colors)}
+      `);
+  } else {
+    return '\n' + rs(tags.stripIndents`
+      ${statsTable}
+      ${generateBuildStats(json.hash, time, colors)}
+      `);
+  }
+}
+
+// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L64
+function generateBuildStatsTable(data: BundleStats[], colors: boolean, showTotalSize: boolean): string {
+  const g = (x: string) => colors ? ansiColors.greenBright(x) : x;
+  const c = (x: string) => colors ? ansiColors.cyanBright(x) : x;
+  const bold = (x: string) => colors ? ansiColors.bold(x) : x;
+  const dim = (x: string) => colors ? ansiColors.dim(x) : x;
+
+  const changedEntryChunksStats: BundleStatsData[] = [];
+  const changedLazyChunksStats: BundleStatsData[] = [];
+
+  let initialModernTotalSize = 0;
+  let initialLegacyTotalSize = 0;
+  let modernFileSuffix: string | undefined;
+
+  for (const { initial, stats, chunkType } of data) {
+    const [files, names, size] = stats;
+
+    const data: BundleStatsData = [
+      g(files),
+      names,
+      c(typeof size === 'number' ? formatSize(size) : size),
+    ];
+
+    if (initial) {
+      changedEntryChunksStats.push(data);
+
+      if (typeof size === 'number') {
+        switch (chunkType) {
+          case 'modern':
+            initialModernTotalSize += size;
+            if (!modernFileSuffix) {
+              const match = files.match(/-(es20\d{2}|esnext)/);
+              modernFileSuffix = match?.[1].toString().toUpperCase();
+            }
+            break;
+          case 'legacy':
+            initialLegacyTotalSize += size;
+            break;
+          default:
+            initialModernTotalSize += size;
+            initialLegacyTotalSize += size;
+            break;
+        }
+      }
+    } else {
+      changedLazyChunksStats.push(data);
+    }
   }
 
-  const transformedConfig = await configTransformer(config);
+  const bundleInfo: (string | number)[][] = [];
 
-  return transformedConfig || config;
+  // Entry chunks
+  if (changedEntryChunksStats.length) {
+    bundleInfo.push(
+      ['Initial Chunk Files', 'Names', 'Size'].map(bold),
+      ...changedEntryChunksStats,
+    );
+
+    if (showTotalSize) {
+      bundleInfo.push([]);
+      if (initialModernTotalSize === initialLegacyTotalSize) {
+        bundleInfo.push([' ', 'Initial Total', formatSize(initialModernTotalSize)].map(bold));
+      } else {
+        bundleInfo.push(
+          [' ', 'Initial ES5 Total', formatSize(initialLegacyTotalSize)].map(bold),
+          [' ', `Initial ${modernFileSuffix} Total`, formatSize(initialModernTotalSize)].map(bold),
+        );
+      }
+    }
+  }
+
+  // Seperator
+  if (changedEntryChunksStats.length && changedLazyChunksStats.length) {
+    bundleInfo.push([]);
+  }
+
+  // Lazy chunks
+  if (changedLazyChunksStats.length) {
+    bundleInfo.push(
+      ['Lazy Chunk Files', 'Names', 'Size'].map(bold),
+      ...changedLazyChunksStats,
+    );
+  }
+
+  return textTable(bundleInfo, {
+    hsep: dim(' | '),
+    stringLength: s => removeColor(s).length,
+    align: ['l', 'l', 'r'],
+  });
 }
 
 // #endregion webpack compiler utils

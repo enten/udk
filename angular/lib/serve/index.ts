@@ -5,8 +5,9 @@
 import { Observable } from 'rxjs';
 
 import { BuilderContext, BuilderOutput, createBuilder } from '@angular-devkit/architect';
+import { colors } from '@angular-devkit/build-angular/src/utils/color';
 import { assertCompatibleAngularVersion } from '@angular-devkit/build-angular/src/utils/version';
-import { json, terminal } from '@angular-devkit/core';
+import { json } from '@angular-devkit/core';
 
 import { UniversalServeOptions } from './types';
 
@@ -40,10 +41,10 @@ export function ngUniversalServe(
 
 function printServeLabel(context: BuilderContext): void {
   const project = context.target && context.target.project;
-  let label = terminal.colors.bgBlue(terminal.colors.bold(terminal.colors.black(' DEV ')));
+  let label = colors.bgBlue(colors.bold(colors.black(' DEV ')));
 
   if (project) {
-    const projectLabel = terminal.colors.bgWhite(terminal.colors.black(` ${project} `));
+    const projectLabel = colors.bgWhite(colors.black(` ${project} `));
     label += ` ${projectLabel}`;
   }
 

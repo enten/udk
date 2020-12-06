@@ -3,9 +3,9 @@
 // Definitions by: Steven Enten <steven@enten.fr>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
 
-declare module 'webpack-plugin-compat' {
+// declare module 'webpack-plugin-compat' {
   export = webpackPluginCompat;
-}
+// }
 
 declare const webpackPluginCompat: WebpackPluginCompat;
 

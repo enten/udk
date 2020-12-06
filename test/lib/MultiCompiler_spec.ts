@@ -2,7 +2,7 @@
 
 import { DepGraph } from 'dependency-graph';
 import * as webpack from 'webpack';
-import wpc = require('webpack-plugin-compat');
+import wpc = require('../../webpack-plugin-compat');
 
 import {
   MultiCompiler1,
@@ -554,7 +554,7 @@ describe('udk/lib/MultiCompiler', () => { // tslint:disable-line:no-big-function
 
       expect(compiler.watch(watchOptions, watchHandler)).toBe(watching);
       expect(_udk.watchings.length).toEqual(1);
-      expect(watch).toBeCalledWith(watchOptions, watchHandler);
+      expect(watch as any).toBeCalledWith(watchOptions, watchHandler);
 
       callback.mockClear();
 

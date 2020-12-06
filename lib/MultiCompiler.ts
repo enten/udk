@@ -4,7 +4,7 @@ import * as webpack from 'webpack';
 
 import debug = require('debug');
 import { DepGraph } from 'dependency-graph';
-import wpc = require('webpack-plugin-compat');
+import wpc = require('../webpack-plugin-compat');
 
 export const MultiCompiler1: MultiCompilerStatic = require('webpack/lib/MultiCompiler');
 

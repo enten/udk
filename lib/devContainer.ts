@@ -4,7 +4,7 @@ import * as http from 'http';
 import * as path from 'path';
 
 import * as webpack from 'webpack';
-import wpc = require('webpack-plugin-compat');
+import wpc = require('../webpack-plugin-compat');
 
 import MultiCompiler from './MultiCompiler';
 
@@ -579,35 +579,38 @@ export class DevContainerRuntime extends ContainerRuntime {
       throw new Error('Compiler is not available (container does not seem prepared)');
     }
 
-    // todo: handle watchOptions
-    this.compilerWatching = this.compiler.watch({}, (err, stats) => {
-      if (err) {
-        throw err;
-      }
-
-      this.printCompilerStats(config, stats);
-
-      if (stats.hasErrors()) {
-        return;
-      }
-
-      let multiStats: webpack.Stats[];
-
-      if ('stats' in stats) {
-        multiStats = (stats as { stats: webpack.Stats[] }).stats;
-      } else {
-        multiStats = [ stats ];
-      }
-
-      for (const s of multiStats) {
-        const { target } = s.compilation.compiler.options;
-        const isNodeTarget = !!target && (target as string).indexOf('node') !== -1;
-
-        if (isNodeTarget) {
-          this.emitBundleAvailable(config, s);
+    this.compilerWatching = this.compiler.watch(
+      // todo: handle watchOptions
+      {},
+      (err: Error, stats: webpack.Stats | webpack.compilation.MultiStats) => {
+        if (err) {
+          throw err;
         }
-      }
-    });
+
+        this.printCompilerStats(config, stats as webpack.Stats);
+
+        if (stats.hasErrors()) {
+          return;
+        }
+
+        let multiStats: webpack.Stats[];
+
+        if ('stats' in stats) {
+          multiStats = (stats as { stats: webpack.Stats[] }).stats;
+        } else {
+          multiStats = [ stats ];
+        }
+
+        for (const s of multiStats) {
+          const { target } = s.compilation.compiler.options;
+          const isNodeTarget = !!target && (target as string).indexOf('node') !== -1;
+
+          if (isNodeTarget) {
+            this.emitBundleAvailable(config, s);
+          }
+        }
+      },
+    );
   }
 
   tryPrepareUniversalHMR(

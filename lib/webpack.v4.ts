@@ -61,9 +61,12 @@ const webpackV4 = ((options, callback?) => {
         ? options.map(o => o.watchOptions || {})
         : options.watchOptions || {};
 
-      return compiler.watch(watchOptions as webpack.WatchOptions, callback);
+      return compiler.watch(
+        watchOptions as webpack.WatchOptions,
+        callback as webpack.ICompiler.MultiHandler & webpack.ICompiler.Handler,
+      );
     }
-    compiler.run(callback);
+    compiler.run(callback as webpack.ICompiler.MultiHandler & webpack.ICompiler.Handler);
   }
 
   return compiler;

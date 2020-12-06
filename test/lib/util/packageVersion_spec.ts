@@ -18,7 +18,7 @@ describe('udk/lib/util/packageVersion', () => {
     });
 
     it('should works even if version field does not exist', () => {
-      const pkg: { version: string } = require('../../../package');
+      const pkg: { version?: string } = require('../../../package');
       const originVersion = pkg.version;
 
       delete pkg.version;
