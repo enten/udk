@@ -4,7 +4,7 @@ import * as http from 'http';
 import * as path from 'path';
 
 import * as webpack from 'webpack';
-import wpc = require('../webpack-plugin-compat');
+import wpc = require('webpack-plugin-compat');
 
 import MultiCompiler from './MultiCompiler';
 

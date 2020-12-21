@@ -2,7 +2,7 @@
 
 import { DepGraph } from 'dependency-graph';
 import * as webpack from 'webpack';
-import wpc = require('../../webpack-plugin-compat');
+import wpc = require('webpack-plugin-compat');
 
 import {
   MultiCompiler1,

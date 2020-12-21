@@ -10,7 +10,7 @@ process.exitCode = 0;
 const runCommand = (command: string, args: string[]) => {
   const cp = require('child_process');
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const executedCommand = cp.spawn(command, args, {
       stdio: 'inherit',
       shell: true,

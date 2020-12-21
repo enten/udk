@@ -46,7 +46,6 @@
       "killer": [ "./types/killer" ],
       "udk": [ "./lib/index" ],
       "udk/*": [ "./*" ],
-      "webpack-plugin-compat": [ "./webpack-plugin-compat" ],
       "yargs-parser": [ "./types/yargs-parser" ]
     }
   },

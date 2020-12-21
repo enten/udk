@@ -36,10 +36,10 @@ const webpackV3 = ((options, callback?) => {
     compiler.options = options;
     new NodeEnvironmentPlugin().apply(compiler);
     if (options.plugins && Array.isArray(options.plugins)) {
-      compiler.apply.apply(compiler, options.plugins);
+      (compiler as any).apply.apply(compiler, options.plugins);
     }
-    compiler.applyPlugins('environment');
-    compiler.applyPlugins('after-environment');
+    (compiler as any).applyPlugins('environment');
+    (compiler as any).applyPlugins('after-environment');
     compiler.options = new WebpackOptionsApply().process(options, compiler);
   } else {
     throw new Error('Invalid argument: options');

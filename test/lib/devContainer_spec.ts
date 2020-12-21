@@ -3,7 +3,7 @@
 import * as path from 'path';
 
 import * as webpack from 'webpack';
-import wpc = require('../../webpack-plugin-compat');
+import wpc = require('webpack-plugin-compat');
 
 import {
   BUNDLE_AVAILABLE_EVENT,

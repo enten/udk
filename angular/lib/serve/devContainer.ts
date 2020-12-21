@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
 import webpack = require('webpack');
-import wpc = require('../../../webpack-plugin-compat');
+import wpc = require('webpack-plugin-compat');
 
 import {
   Architect,
