@@ -61,6 +61,19 @@ export interface UniversalBuildOptions {
    * Adds more details to output logging.
    */
   verbose?: boolean;
+  /**
+   * The full path for the output directory (relative to the current workspace) expected
+   * of browser and server targets.
+   *
+   * Use it to warn when browser or server target output path is outside this output path.
+   * Use it to allow nx (@nrwl/workspace) to cache udk build.
+   * Don't use it in case of browser and server targets hasn't the same base output path.
+   */
+  outputPath?: string;
+  /**
+   * Generates a package.json file inside 'outputPath' with a main field to server output main.js.
+   */
+  generatePackageJson: boolean;
 }
 
 export declare type UniversalBuildOutput = json.JsonObject & BuilderOutput & {
@@ -94,7 +107,6 @@ export interface BuilderInitContext<T> {
 export interface BrowserBuilderInitContext extends BuilderInitContext<BrowserBuilderOptions> {
   isDifferentialLoadingNeeded: boolean;
   target: ScriptTarget;
-  differentialLoadingMode: boolean;
   buildBrowserFeatures: BuildBrowserFeatures;
 }
 

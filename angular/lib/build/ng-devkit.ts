@@ -10,9 +10,9 @@ import * as textTable from 'text-table';
 import { ScriptTarget } from 'typescript';
 import webpack = require('webpack');
 
-import { BuilderContext, targetFromTargetString } from '@angular-devkit/architect';
+import { BuilderContext, Target, targetFromTargetString, targetStringFromTarget } from '@angular-devkit/architect';
 import { BuildResult, EmittedFiles, WebpackLoggingCallback } from '@angular-devkit/build-webpack';
-import { getSystemPath, json, logging, normalize, resolve, tags, virtualFs } from '@angular-devkit/core';
+import { getSystemPath, join, json, logging, normalize, relative, resolve, tags, virtualFs } from '@angular-devkit/core';
 
 // #region build-angular imports
 
@@ -27,18 +27,17 @@ import { colors as ansiColors, removeColor } from '@angular-devkit/build-angular
 import { copyAssets } from '@angular-devkit/build-angular/src/utils/copy-assets';
 import { deleteOutputDir } from '@angular-devkit/build-angular/src/utils/delete-output-dir';
 import { cachingDisabled } from '@angular-devkit/build-angular/src/utils/environment-options';
+import { mkdir, writeFile } from '@angular-devkit/build-angular/src/utils/fs';
 import { i18nInlineEmittedFiles } from '@angular-devkit/build-angular/src/utils/i18n-inlining';
 import { I18nOptions } from '@angular-devkit/build-angular/src/utils/i18n-options';
-import { getHtmlTransforms } from '@angular-devkit/build-angular/src/utils/index-file/transforms';
-import {
-  IndexHtmlTransform,
-  writeIndexHtml,
-} from '@angular-devkit/build-angular/src/utils/index-file/write-index-html';
+import { FileInfo } from '@angular-devkit/build-angular/src/utils/index-file/augment-index-html';
+import { IndexHtmlGenerator, IndexHtmlTransform } from '@angular-devkit/build-angular/src/utils/index-file/index-html-generator';
 import { normalizeAssetPatterns } from '@angular-devkit/build-angular/src/utils/normalize-asset-patterns';
 import { NormalizedBrowserBuilderSchema } from '@angular-devkit/build-angular/src/utils/normalize-builder-schema';
 import { normalizeOptimization } from '@angular-devkit/build-angular/src/utils/normalize-optimization';
 import { normalizeSourceMaps } from '@angular-devkit/build-angular/src/utils/normalize-source-maps';
 import { ensureOutputPaths } from '@angular-devkit/build-angular/src/utils/output-paths';
+import { generateEntryPoints } from '@angular-devkit/build-angular/src/utils/package-chunk-sort';
 import {
   InlineOptions,
   ProcessBundleFile,
@@ -54,7 +53,7 @@ import {
   getIndexInputFile,
   getIndexOutputFile,
 } from '@angular-devkit/build-angular/src/utils/webpack-browser-config';
-import { isWebpackFiveOrHigher } from '@angular-devkit/build-angular/src/utils/webpack-version';
+import { normalizeExtraEntryPoints } from '@angular-devkit/build-angular/src/webpack/utils/helpers';
 import {
   getAotConfig,
   getBrowserConfig,
@@ -63,7 +62,6 @@ import {
   getStatsConfig,
   getStylesConfig,
   getWorkerConfig,
-  normalizeExtraEntryPoints,
 } from '@angular-devkit/build-angular/src/webpack/configs';
 import { markAsyncChunksNonInitial } from '@angular-devkit/build-angular/src/webpack/utils/async-chunks';
 import {
@@ -76,7 +74,6 @@ import {
   statsHasErrors,
   statsHasWarnings,
   statsWarningsToString,
-  // webpackStatsLogger,
 } from '@angular-devkit/build-angular/src/webpack/utils/stats';
 import { getEmittedFiles } from '@angular-devkit/build-webpack/src/utils';
 
@@ -99,7 +96,7 @@ import {
 
 // #region exports from build-angular
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L82
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L79
 export const cacheDownlevelPath = cachingDisabled ? undefined : findCachePath('angular-build-dl');
 
 // #endregion exports from build-angular
@@ -124,6 +121,18 @@ export async function getUniversalTargetOptions<K extends keyof UniversalTargetO
     targetString,
     optionsOverrides,
   );
+
+  // warn when target output path is outside universal output path
+  if (options.outputPath) {
+    const universalOutputPath = path.resolve(context.workspaceRoot, options.outputPath);
+    const platformOutputPath = path.resolve(context.workspaceRoot, platformOptions.outputPath);
+    const platformOutputPathRelativeToUniversalOutputPath = path.relative(universalOutputPath, platformOutputPath);
+
+    if (platformOutputPathRelativeToUniversalOutputPath.startsWith('..')) {
+      // tslint:disable-next-line: max-line-length
+      context.logger.warn(`Warning: Option 'outputPath' (${platformOptions.outputPath}) of target ${targetString} is outside option 'outputPath' (${options.outputPath}) of universal target ${targetStringFromTarget((context.target || {}) as Target)}`);
+    }
+  }
 
   // merge platform options with universal file replacements
   platformOptions.fileReplacements = [
@@ -163,6 +172,52 @@ export async function validateTargetOptions<T>(
 
 // #endregion options utils
 
+// #region universal utils
+
+export function generatePackageJson(
+  context: BuilderContext,
+  universalOptions: UniversalBuildOptions,
+  serverOptions: ServerBuilderOptions,
+): void {
+  if (!context.target || !universalOptions.generatePackageJson || !universalOptions.outputPath) {
+    return;
+  }
+
+  const serverOutputPathRelative = relative(
+    resolve(normalize(context.workspaceRoot), normalize(universalOptions.outputPath)),
+    resolve(normalize(context.workspaceRoot), normalize(serverOptions.outputPath)),
+  );
+  const mainPathRelative = join(serverOutputPathRelative, 'main.js');
+  let workspacePackageVersion = '0.0.0';
+
+  try {
+    const workspacePackageJson = require(path.resolve(context.workspaceRoot, 'package.json'));
+
+    if (workspacePackageJson?.version) {
+      workspacePackageVersion = workspacePackageJson.version;
+    }
+  } catch (err) {
+    context.logger.error('Error while reading workspace package.json:', err);
+  }
+
+  const packageJson = `{
+  "private": true,
+  "name": "${context.target.project}",
+  "version": "${workspacePackageVersion}",
+  "main": "./${mainPathRelative}"
+}`;
+
+  fs.writeFileSync(
+    path.resolve(context.workspaceRoot, universalOptions.outputPath, 'package.json'),
+    packageJson,
+    'utf8',
+  );
+
+  context.logger.info('Generating package.json complete.');
+}
+
+// #endregion
+
 // #region browser builder
 
 export async function initializeBrowserBuilder(
@@ -171,7 +226,7 @@ export async function initializeBrowserBuilder(
   context: BuilderContext,
   host: virtualFs.Host<fs.Stats>,
 ): Promise<BrowserBuilderInitContext> {
-  // https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L216
+  // https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L200
 
   const projectName = context.target?.project;
   if (!projectName) {
@@ -189,7 +244,6 @@ export async function initializeBrowserBuilder(
   const target = compilerOptions.target || ScriptTarget.ES5;
   const buildBrowserFeatures = new BuildBrowserFeatures(sysProjectRoot);
   const isDifferentialLoadingNeeded = buildBrowserFeatures.isDifferentialLoadingNeeded(target);
-  const differentialLoadingMode = !browserOptions.watch && isDifferentialLoadingNeeded;
 
   if (target > ScriptTarget.ES2015 && isDifferentialLoadingNeeded) {
     context.logger.warn(tags.stripIndent`
@@ -206,27 +260,18 @@ export async function initializeBrowserBuilder(
       (hasIE9 ? 'IE 9' + (hasIE10 ? ' & ' : '') : '') + (hasIE10 ? 'IE 10' : '');
     context.logger.warn(
       `Warning: Support was requested for ${browsers} in the project's browserslist configuration. ` +
-        (hasIE9 && hasIE10 ? 'These browsers are' : 'This browser is') +
-        ' no longer officially supported with Angular v11 and higher.' +
-        '\nFor additional information: https://v10.angular.io/guide/deprecations#ie-9-10-and-mobile',
+      (hasIE9 && hasIE10 ? 'These browsers are' : 'This browser is') +
+      ' no longer officially supported with Angular v11 and higher.' +
+      '\nFor additional information: https://v10.angular.io/guide/deprecations#ie-9-10-and-mobile',
     );
   }
 
-  // https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L129
+  // https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L137
 
   const originalOutputPath = browserOptions.outputPath;
 
-  // Assets are processed directly by the builder browser finalizer
-  const adjustedOptions = { ...browserOptions, assets: [] };
-
-  // TODO_WEBPACK_5: Investigate build/serve issues with the `license-webpack-plugin` package
-  if (adjustedOptions.extractLicenses && isWebpackFiveOrHigher()) {
-    adjustedOptions.extractLicenses = false;
-    context.logger.warn(
-      'Warning: License extraction is currently disabled when using Webpack 5. ' +
-        'This is temporary and will be corrected in a future update.',
-    );
-  }
+  // Assets are processed directly by the builder except when watching
+  const adjustedOptions = browserOptions.watch ? browserOptions : { ...browserOptions, assets: [] };
 
   const {
     config: browserConfig,
@@ -245,15 +290,13 @@ export async function initializeBrowserBuilder(
       getCompilerConfig(wco),
       wco.buildOptions.webWorkerTsConfig ? getWorkerConfig(wco) : {},
     ],
-    host,
-    { differentialLoadingMode },
+    { differentialLoadingNeeded: isDifferentialLoadingNeeded },
   );
 
   // Validate asset option values if processed directly
   if (browserOptions.assets?.length && !adjustedOptions.assets?.length) {
     normalizeAssetPatterns(
       browserOptions.assets,
-      new virtualFs.SyncDelegateHost(host),
       normalize(context.workspaceRoot),
       normalize(projectRoot),
       projectSourceRoot === undefined ? undefined : normalize(projectSourceRoot),
@@ -281,12 +324,11 @@ export async function initializeBrowserBuilder(
     i18n,
     isDifferentialLoadingNeeded,
     target,
-    differentialLoadingMode,
     buildBrowserFeatures,
   };
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L289
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L267
 // tslint:disable-next-line: no-big-function
 export function createBrowserBuilderFinalizer(
   context: BuilderContext,
@@ -298,7 +340,6 @@ export function createBrowserBuilderFinalizer(
     i18n,
     isDifferentialLoadingNeeded,
     target,
-    differentialLoadingMode,
     buildBrowserFeatures,
   }: BrowserBuilderInitContext,
   transforms: {
@@ -311,11 +352,6 @@ export function createBrowserBuilderFinalizer(
   const baseOutputPath = path.resolve(context.workspaceRoot, options.outputPath);
 
   const normalizedOptimization = normalizeOptimization(options.optimization);
-  const indexTransforms = getHtmlTransforms(
-    normalizedOptimization,
-    buildBrowserFeatures,
-    transforms.indexHtml,
-  );
 
   // tslint:disable-next-line: no-big-function
   return async (startTime, buildEvent) => {
@@ -328,8 +364,11 @@ export function createBrowserBuilderFinalizer(
     }
 
     // Fix incorrectly set `initial` value on chunks.
-    const extraEntryPoints = normalizeExtraEntryPoints(options.styles || [], 'styles')
-      .concat(normalizeExtraEntryPoints(options.scripts || [], 'scripts'));
+    const extraEntryPoints = [
+      ...normalizeExtraEntryPoints(options.styles || [], 'styles'),
+      ...normalizeExtraEntryPoints(options.scripts || [], 'scripts'),
+    ];
+
     const webpackStats = {
       ...webpackRawStats,
       chunks: markAsyncChunksNonInitial(webpackRawStats, extraEntryPoints),
@@ -358,6 +397,7 @@ export function createBrowserBuilderFinalizer(
 
       return finalize(false);
     } else {
+      const processResults: ProcessBundleResult[] = [];
       const bundleInfoStats: BundleStats[] = [];
       outputPaths = ensureOutputPaths(baseOutputPath, i18n);
 
@@ -372,7 +412,7 @@ export function createBrowserBuilderFinalizer(
 
       if (isDifferentialLoadingNeeded && options.watch) {
         moduleFiles = emittedFiles;
-        files = moduleFiles.filter(
+        files = (moduleFiles || []).filter(
           x => x.extension === '.css' || (x.name && scriptsEntryPointName.includes(x.name)),
         );
         if (i18n.shouldInline) {
@@ -507,7 +547,6 @@ export function createBrowserBuilderFinalizer(
 
         const processActions: typeof actions = [];
         let processRuntimeAction: ProcessBundleOptions | undefined;
-        const processResults: ProcessBundleResult[] = [];
         for (const action of actions) {
           // If SRI is enabled always process the runtime bundle
           // Lazy route integrity values are stored in the runtime bundle
@@ -661,22 +700,6 @@ export function createBrowserBuilderFinalizer(
           const asset = webpackStats.assets?.find(a => a.name === chunk.files[0]);
           bundleInfoStats.push(generateBundleStats({ ...chunk, size: asset?.size }));
         }
-
-        // Check for budget errors and display them to the user.
-        const budgets = options.budgets || [];
-        const budgetFailures = checkBudgets(budgets, webpackStats, processResults);
-        for (const { severity, message } of budgetFailures) {
-          switch (severity) {
-            case ThresholdSeverity.Warning:
-              webpackStats.warnings.push(message);
-              break;
-            case ThresholdSeverity.Error:
-              webpackStats.errors.push(message);
-              break;
-            default:
-              assertNever(severity);
-          }
-        }
       } else {
         files = emittedFiles.filter(x => x.name !== 'polyfills-es5');
         noModuleFiles = emittedFiles.filter(x => x.name === 'polyfills-es5');
@@ -699,59 +722,98 @@ export function createBrowserBuilderFinalizer(
         }
       }
 
-      // Copy assets
-      if (!options.watch && options.assets?.length) {
-        spinner.start('Copying assets...');
-        try {
-          await copyAssets(
-            normalizeAssetPatterns(
-              options.assets,
-              new virtualFs.SyncDelegateHost(host),
-              root,
-              normalize(projectRoot),
-              projectSourceRoot === undefined ? undefined : normalize(projectSourceRoot),
-            ),
-            Array.from(outputPaths.values()),
-            context.workspaceRoot,
-          );
-          spinner.succeed('Copying assets complete.');
-        } catch (err) {
-          spinner.fail(ansiColors.redBright('Copying of assets failed.'));
-
-          return finalize(false, 'Unable to copy assets: ' + err.message);
+      // Check for budget errors and display them to the user.
+      const budgets = options.budgets;
+      if (budgets?.length) {
+        const budgetFailures = checkBudgets(budgets, webpackStats, processResults);
+        for (const { severity, message } of budgetFailures) {
+          switch (severity) {
+            case ThresholdSeverity.Warning:
+              webpackStats.warnings.push(message);
+              break;
+            case ThresholdSeverity.Error:
+              webpackStats.errors.push(message);
+              break;
+            default:
+              assertNever(severity);
+          }
         }
       }
 
-      if (success) {
+      const buildSuccess = success && !statsHasErrors(webpackStats);
+      if (buildSuccess) {
+        // Copy assets
+        if (!options.watch && options.assets?.length) {
+          spinner.start('Copying assets...');
+          try {
+            await copyAssets(
+              normalizeAssetPatterns(
+                options.assets,
+                root,
+                normalize(projectRoot),
+                projectSourceRoot === undefined ? undefined : normalize(projectSourceRoot),
+              ),
+              Array.from(outputPaths.values()),
+              context.workspaceRoot,
+            );
+            spinner.succeed('Copying assets complete.');
+          } catch (err) {
+            spinner.fail(ansiColors.redBright('Copying of assets failed.'));
+
+            return finalize(false, 'Unable to copy assets: ' + err.message);
+          }
+        }
+
         if (options.index) {
           spinner.start('Generating index html...');
+
+          const WOFFSupportNeeded = !buildBrowserFeatures.isFeatureSupported('woff2');
+          const entrypoints = generateEntryPoints({
+            scripts: options.scripts ?? [],
+            styles: options.styles ?? [],
+          });
+
+          const indexHtmlGenerator = new IndexHtmlGenerator({
+            indexPath: path.join(context.workspaceRoot, getIndexInputFile(options.index)),
+            entrypoints,
+            deployUrl: options.deployUrl,
+            sri: options.subresourceIntegrity,
+            WOFFSupportNeeded,
+            optimization: normalizedOptimization,
+            crossOrigin: options.crossOrigin,
+            postTransform: transforms.indexHtml,
+          });
+
           for (const [locale, outputPath] of outputPaths.entries()) {
             try {
-              await writeIndexHtml({
-                host,
-                outputPath: path.join(outputPath, getIndexOutputFile(options.index)),
-                indexPath: path.join(context.workspaceRoot, getIndexInputFile(options.index)),
-                files,
-                noModuleFiles,
-                moduleFiles,
+              const { content, warnings, errors } = await indexHtmlGenerator.process({
                 baseHref: getLocaleBaseHref(options, i18n, locale) || options.baseHref,
-                deployUrl: options.deployUrl,
-                sri: options.subresourceIntegrity,
-                scripts: options.scripts,
-                styles: options.styles,
-                postTransforms: indexTransforms,
-                crossOrigin: options.crossOrigin,
                 // i18nLocale is used when Ivy is disabled
                 lang: locale || options.i18nLocale,
+                outputPath,
+                files: mapEmittedFilesToFileInfo(files),
+                noModuleFiles: mapEmittedFilesToFileInfo(noModuleFiles),
+                moduleFiles: mapEmittedFilesToFileInfo(moduleFiles),
               });
+
+              if (warnings.length || errors.length) {
+                spinner.stop();
+                warnings.forEach(m => context.logger.warn(m));
+                errors.forEach(m => context.logger.error(m));
+                spinner.start();
+              }
+
+              const indexOutput = path.join(outputPath, getIndexOutputFile(options.index));
+              await mkdir(path.dirname(indexOutput), { recursive: true });
+              await writeFile(indexOutput, content);
             } catch (error) {
               spinner.fail('Index html generation failed.');
 
               return finalize(false, mapErrorToMessage(error));
             }
-
-            spinner.succeed('Index html generation complete.');
           }
+
+          spinner.succeed('Index html generation complete.');
         }
 
         if (options.serviceWorker) {
@@ -759,7 +821,6 @@ export function createBrowserBuilderFinalizer(
           for (const [locale, outputPath] of outputPaths.entries()) {
             try {
               await augmentAppWithServiceWorker(
-                host,
                 root,
                 normalize(projectRoot),
                 normalize(outputPath),
@@ -771,18 +832,18 @@ export function createBrowserBuilderFinalizer(
 
               return finalize(false, mapErrorToMessage(error));
             }
-
-            spinner.succeed('Service worker generation complete.');
           }
+
+          spinner.succeed('Service worker generation complete.');
         }
       }
 
-      return finalize(!statsHasErrors(webpackStats));
+      return finalize(buildSuccess);
     }
   };
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L754
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L757
 function getLocaleBaseHref(options: { baseHref?: string; }, i18n: I18nOptions, locale: string): string | undefined {
   if (i18n.locales[locale] && i18n.locales[locale]?.baseHref !== '') {
     return urlJoin(
@@ -794,7 +855,19 @@ function getLocaleBaseHref(options: { baseHref?: string; }, i18n: I18nOptions, l
   return undefined;
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L766
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L804
+function mapEmittedFilesToFileInfo(files: EmittedFiles[] = []): FileInfo[] {
+  const filteredFiles: FileInfo[] = [];
+  for (const { file, name, extension, initial } of files) {
+    if (name && initial) {
+      filteredFiles.push({ file, extension, name });
+    }
+  }
+
+  return filteredFiles;
+}
+
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L769
 function mapErrorToMessage(error: unknown): string | undefined {
   if (error instanceof Error) {
     return error.message;
@@ -807,14 +880,13 @@ function mapErrorToMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L778
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L781
 function assertNever(input: never): never {
-  throw new Error(`Unexpected call to assertNever() with input: ${
-      JSON.stringify(input, null /* replacer */, 4 /* tabSize */)}`);
+  throw new Error(`Unexpected call to assertNever() with input: ${JSON.stringify(input, null /* replacer */, 4 /* tabSize */)}`);
 }
 
 // tslint:disable-next-line: max-line-length
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/browser/index.ts#L783
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/browser/index.ts#L785
 type ArrayElement<A> = A extends ReadonlyArray<infer T> ? T : never;
 function generateBundleInfoStats(
   bundle: ProcessBundleFile,
@@ -838,7 +910,7 @@ function generateBundleInfoStats(
 
 // #region server builder
 
-// https://github.com/angular/angular-cli/blob/master/packages/angular_devkit/build_angular/src/server/index.ts#L46
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/server/index.ts#L46
 export async function initializeServerBuilder(
   universalOptions: UniversalBuildOptions,
   browserOptions: BrowserBuilderOptions,
@@ -866,12 +938,12 @@ export async function initializeServerBuilder(
       context.logger.warn(tags.stripIndent`
       Warning: Turning off 'bundleDependencies' with Ivy may result in undefined behaviour
       unless 'node_modules' are transformed using the standalone Angular compatibility compiler (NGCC).
-      See: http://v9.angular.io/guide/ivy#ivy-and-universal-app-shell
+      See: https://angular.io/guide/ivy#ivy-and-universal-app-shell
     `);
     }
   }
 
-  // https://github.com/angular/angular-cli/blob/master/packages/angular_devkit/build_angular/src/server/index.ts#L143
+  // https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/server/index.ts#L151
 
   const originalOutputPath = serverOptions.outputPath;
   const {
@@ -918,7 +990,7 @@ export async function initializeServerBuilder(
   };
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/server/index.ts#L94
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/server/index.ts#L94
 export function createServerBuilderFinalizer(
   context: BuilderContext,
   {
@@ -1169,6 +1241,7 @@ export function createLoggingCallback(
 
     logger.info('');
     /*
+    // https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L347
     export function webpackStatsLogger(
       logger: logging.LoggerApi,
       json: Stats.ToJsonOutput,
@@ -1190,13 +1263,13 @@ export function createLoggingCallback(
   return adaptWebpackLoggingCallback(logStats);
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L154
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L155
 function generateBuildStats(hash: string, time: number, colors: boolean): string {
   const w = (x: string) => colors ? ansiColors.bold.white(x) : x;
   return `Build at: ${w(new Date().toISOString())} - Hash: ${w(hash)} - Time: ${w('' + time)}ms`;
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L159
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L160
 function statsToString(json: any, statsConfig: any, bundleState?: BundleStats[]): string {
   const colors = statsConfig.colors;
   const rs = (x: string) => colors ? ansiColors.reset(x) : x;
@@ -1210,7 +1283,7 @@ function statsToString(json: any, statsConfig: any, bundleState?: BundleStats[])
       }
 
       const assets = json.assets.filter((asset: any) => chunk.files.includes(asset.name));
-      const summedSize = assets.filter((asset: any) => !asset.name.endsWith('.map')).reduce((total: number, asset: any) => (total + asset.size), 0);
+      const summedSize = assets.filter((asset: any) => !asset.name.endsWith(".map")).reduce((total: number, asset: any) => { return total + asset.size }, 0);
       changedChunksStats.push(generateBundleStats({ ...chunk, size: summedSize }));
     }
     unchangedChunkNumber = json.chunks.length - changedChunksStats.length;
@@ -1231,7 +1304,7 @@ function statsToString(json: any, statsConfig: any, bundleState?: BundleStats[])
 
   const statsTable = generateBuildStatsTable(changedChunksStats, colors, unchangedChunkNumber === 0);
 
-  // In some cases we do things outside of webpack context
+  // In some cases we do things outside of webpack context 
   // Such us index generation, service worker augmentation etc...
   // This will correct the time and include these.
   const time = (Date.now() - json.builtAt) + json.time;
@@ -1250,7 +1323,7 @@ function statsToString(json: any, statsConfig: any, bundleState?: BundleStats[])
   }
 }
 
-// https://github.com/angular/angular-cli/blob/v11.0.3/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L64
+// https://github.com/angular/angular-cli/blob/v11.2.7/packages/angular_devkit/build_angular/src/webpack/utils/stats.ts#L65
 function generateBuildStatsTable(data: BundleStats[], colors: boolean, showTotalSize: boolean): string {
   const g = (x: string) => colors ? ansiColors.greenBright(x) : x;
   const c = (x: string) => colors ? ansiColors.cyanBright(x) : x;

@@ -14,6 +14,7 @@ import {
   createServerBuilderFinalizer,
   createUniversalWebpackConfig,
   createWebpackMultiCompiler,
+  generatePackageJson,
   getUniversalTargetOptions,
   initializeBrowserBuilder,
   initializeServerBuilder,
@@ -40,12 +41,16 @@ export async function ngUniversalBuild(
 
   if (options.bundleDependenciesWhitelist?.length) {
     // tslint:disable-next-line: max-line-length
-    context.logger.warn(`Option "bundleDependenciesWhitelist" is deprecated: use "externalDependencies" in server builder`);
+    context.logger.warn(`Warning: Option "bundleDependenciesWhitelist" is deprecated: use "externalDependencies" in server builder`);
   }
 
   if (options.fileLoaderEmitFile) {
     // tslint:disable-next-line: max-line-length
-    context.logger.warn(`Option "fileLoaderEmitFile" is deprecated: server builder doesn't emit any file since angular v9`);
+    context.logger.warn(`Warning: Option "fileLoaderEmitFile" is deprecated: server builder doesn't emit any file since angular v9`);
+  }
+
+  if (options.generatePackageJson && !options.outputPath) {
+    context.logger.warn(`Warning: Option "generatePackageJson" requires option "outputPath"`);
   }
 
   context.reportStatus(`Executing...`);
@@ -118,6 +123,8 @@ export async function ngUniversalBuild(
     webpackStats: serverStats.toJson(),
     emittedFiles: serverEmittedFiles,
   } as BuildResult);
+
+  generatePackageJson(context, options, serverOptions);
 
   context.reportStatus(`Done.`);
 

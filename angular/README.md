@@ -15,6 +15,8 @@ Build an universal angular application.
 | `fileReplacements` | | | Replace files with other files in browser and server. |
 | `deleteOutputPath` | boolean | false | Delete the output path before building. |
 | `verbose` | boolean | false | Adds more details to output logging. |
+| `outputPath` | string | | The full path for the output directory (relative to the current workspace) expected of browser and server targets. Use it to warn when browser or server target output path is outside this output path. Use it to allow nx (@nrwl/workspace) to cache udk build. Don't use it in case of browser and server targets hasn't the same base output path. |
+| `generatePackageJson` | boolean | false | Generates a package.json file inside 'outputPath' with a main field to server output main.js. |
 
 ### udk:udk-runner
 
