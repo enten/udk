@@ -56,6 +56,7 @@ describe('udk/lib/util/container', () => { // tslint:disable-line:no-big-functio
         const c = await ContainerRuntime.bootstrapFork({
           argv: [ ContainerRuntimePath ],
           cwd: process.cwd,
+          env: {},
           send: () => {},
         } as {} as NodeJS.Process);
 

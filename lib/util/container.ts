@@ -2,7 +2,7 @@
 
 /// <reference path="../../types/yargs-parser/index.d.ts" />
 
-import { ChildProcess, fork } from 'child_process';
+import { ChildProcess, ForkOptions, fork } from 'child_process';
 import * as path from 'path';
 
 import debug = require('debug');
@@ -77,7 +77,8 @@ export class ContainerRuntime implements ContainerAPI {
   args: ContainerArgs;
   child?: ChildProcess;
   debug = debug(this.debugNs);
-  isChild = !!this.proc.send;
+  // support run under nx cli
+  isChild = !!this.proc.send && this.proc.env.NX_CLI_SET !== 'true';
   logger = console;
   preloadPaths: string[] = [];
   requirePath?: string;
@@ -222,7 +223,14 @@ export class ContainerRuntime implements ContainerAPI {
 
     const forkModulePath = __filename;
     const forkArgv = this.proc.argv.slice(2).concat(this.runtimePath);
-    // const forkOptions: ForkOptions = { cwd: this.args.cwd };
+    const forkOptions: ForkOptions = {
+      // cwd: this.args.cwd,
+      env: {
+        ...this.proc.env,
+        // support run under nx cli
+        NX_CLI_SET: 'false',
+      },
+    };
 
     this.debug('[%o] fork child process', this.proc.pid);
     this.debug('modulePath: %o', forkModulePath);
@@ -230,7 +238,7 @@ export class ContainerRuntime implements ContainerAPI {
     // this.debug('options: %o', forkOptions);
 
     // fork child process
-    this.child = fork(forkModulePath, forkArgv); // , forkOptions);
+    this.child = fork(forkModulePath, forkArgv, forkOptions);
 
     this.child.once('exit', code => {
       const childPid = this.child && this.child.pid;
