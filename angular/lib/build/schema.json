@@ -57,7 +57,7 @@
     },
     "generatePackageJson": {
       "type": "boolean",
-      "description": "Generates a package.json file inside 'outputPath' with a main field to server output main.js.",
+      "description": "Generates a package.json file inside 'outputPath' with a main field to server output main.js. If a package.json exists in the project's directory, it will be reused.",
       "default": false
     }
   },

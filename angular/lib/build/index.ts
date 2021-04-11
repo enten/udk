@@ -124,7 +124,7 @@ export async function ngUniversalBuild(
     emittedFiles: serverEmittedFiles,
   } as BuildResult);
 
-  generatePackageJson(context, options, serverOptions);
+  await generatePackageJson(context, options, serverOptions);
 
   context.reportStatus(`Done.`);
 

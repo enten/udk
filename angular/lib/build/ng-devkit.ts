@@ -174,11 +174,11 @@ export async function validateTargetOptions<T>(
 
 // #region universal utils
 
-export function generatePackageJson(
+export async function generatePackageJson(
   context: BuilderContext,
   universalOptions: UniversalBuildOptions,
   serverOptions: ServerBuilderOptions,
-): void {
+): Promise<void> {
   if (!context.target || !universalOptions.generatePackageJson || !universalOptions.outputPath) {
     return;
   }
@@ -188,10 +188,11 @@ export function generatePackageJson(
     resolve(normalize(context.workspaceRoot), normalize(serverOptions.outputPath)),
   );
   const mainPathRelative = join(serverOutputPathRelative, 'main.js');
+  const workspacePackageJsonPath = path.resolve(context.workspaceRoot, 'package.json');
   let workspacePackageVersion = '0.0.0';
 
   try {
-    const workspacePackageJson = require(path.resolve(context.workspaceRoot, 'package.json'));
+    const workspacePackageJson = require(workspacePackageJsonPath);
 
     if (workspacePackageJson?.version) {
       workspacePackageVersion = workspacePackageJson.version;
@@ -200,16 +201,33 @@ export function generatePackageJson(
     context.logger.error('Error while reading workspace package.json:', err);
   }
 
-  const packageJson = `{
-  "private": true,
-  "name": "${context.target.project}",
-  "version": "${workspacePackageVersion}",
-  "main": "./${mainPathRelative}"
-}`;
+  const projectMetadata = await context.getProjectMetadata(context.target);
+  const projectPackageJsonPath = path.resolve(context.workspaceRoot, projectMetadata.root as string, 'package.json');
+  let projectPackageJson: json.JsonObject = {};
+
+  if (
+    projectMetadata.root
+    && projectPackageJsonPath !== workspacePackageJsonPath
+    && fs.existsSync(projectPackageJsonPath)
+  ) {
+    projectPackageJson = require(projectPackageJsonPath);
+  }
+
+  const packageJson = {
+    private: typeof projectPackageJson.private === 'boolean' ? projectPackageJson.private : true,
+    name: context.target.project,
+    version: '0.0.0',
+    main: mainPathRelative,
+    ...projectPackageJson,
+  };
+
+  packageJson.version = projectPackageJson.version && projectPackageJson.version !== '0.0.0'
+    ? projectPackageJson.version as string
+    : workspacePackageVersion;
 
   fs.writeFileSync(
     path.resolve(context.workspaceRoot, universalOptions.outputPath, 'package.json'),
-    packageJson,
+    JSON.stringify(packageJson, null, 2),
     'utf8',
   );
 
