@@ -174,6 +174,8 @@ export async function validateTargetOptions<T>(
 
 // #region universal utils
 
+type PackageJsonDepsKey = 'dependencies' | 'devDependencies' | 'peerDependencies' | 'optionalDependencies';
+
 export async function generatePackageJson(
   context: BuilderContext,
   universalOptions: UniversalBuildOptions,
@@ -190,12 +192,25 @@ export async function generatePackageJson(
   const mainPathRelative = join(serverOutputPathRelative, 'main.js');
   const workspacePackageJsonPath = path.resolve(context.workspaceRoot, 'package.json');
   let workspacePackageVersion = '0.0.0';
+  let workspacePackageDeps = {
+    dependencies: {} as { [name: string]: string },
+    devDependencies: {} as { [name: string]: string },
+    peerDependencies: {} as { [name: string]: string },
+    optionalDependencies: {} as { [name: string]: string },
+  };
 
   try {
     const workspacePackageJson = require(workspacePackageJsonPath);
 
     if (workspacePackageJson?.version) {
       workspacePackageVersion = workspacePackageJson.version;
+    }
+
+    workspacePackageDeps = {
+      dependencies: { ...workspacePackageJson.dependencies },
+      devDependencies: { ...workspacePackageJson.devDependencies },
+      peerDependencies: { ...workspacePackageJson.peerDependencies },
+      optionalDependencies: { ...workspacePackageJson.optionalDependencies },
     }
   } catch (err) {
     context.logger.error('Error while reading workspace package.json:', err);
@@ -204,6 +219,12 @@ export async function generatePackageJson(
   const projectMetadata = await context.getProjectMetadata(context.target);
   const projectPackageJsonPath = path.resolve(context.workspaceRoot, projectMetadata.root as string, 'package.json');
   let projectPackageJson: json.JsonObject = {};
+  let projectPackageDeps = {} as {
+    dependencies: { [name: string]: string };
+    devDependencies: { [name: string]: string };
+    peerDependencies: { [name: string]: string };
+    optionalDependencies: { [name: string]: string };
+  };
 
   if (
     projectMetadata.root
@@ -211,6 +232,32 @@ export async function generatePackageJson(
     && fs.existsSync(projectPackageJsonPath)
   ) {
     projectPackageJson = require(projectPackageJsonPath);
+
+    for (const depsKey of [
+      'dependencies',
+      'devDependencies',
+      'peerDependencies',
+      'optionalDependencies'
+    ] as PackageJsonDepsKey[]) {
+      const deps = (projectPackageJson[depsKey] || {}) as { [name: string]: string };
+
+      for (const depName of Object.keys(deps)) {
+        if (!projectPackageDeps[depsKey]) {
+          projectPackageDeps[depsKey] = {};
+        }
+
+        const versionInProjectPackageJson = deps[depName];
+        const versionInWorkspacePackageJson = workspacePackageDeps[depsKey][depName]
+          || workspacePackageDeps.dependencies[depName]
+          || workspacePackageDeps.devDependencies[depName]
+          || workspacePackageDeps.optionalDependencies[depName]
+          || workspacePackageDeps.peerDependencies[depName];
+
+        projectPackageDeps[depsKey][depName] = versionInProjectPackageJson === '0.0.0' && versionInWorkspacePackageJson
+          ? versionInWorkspacePackageJson
+          : versionInProjectPackageJson;
+      }
+    }
   }
 
   const packageJson = {
@@ -219,6 +266,7 @@ export async function generatePackageJson(
     version: '0.0.0',
     main: mainPathRelative,
     ...projectPackageJson,
+    ...projectPackageDeps,
   };
 
   packageJson.version = projectPackageJson.version && projectPackageJson.version !== '0.0.0'
