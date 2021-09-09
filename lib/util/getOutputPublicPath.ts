@@ -2,11 +2,11 @@
 
 import * as webpack from 'webpack';
 
-export type GetOutputPublicPathInput = { compilation: webpack.compilation.Compilation }
-  | webpack.compilation.Compilation
+export type GetOutputPublicPathInput = { compilation: webpack.Compilation }
+  | webpack.Compilation
   | webpack.Compiler
   | webpack.Configuration
-  | webpack.Output
+  // | webpack.Output
   | string
   | null
   | undefined;
@@ -47,17 +47,17 @@ export function getOutputPublicPath(
 
     // WebpackCompiler
     if ('options' in obj && obj.options) {
-      obj = obj.options;
+      obj = obj.options as any;
     }
 
     // WebpackConfigOptionsOutput
-    if ('output' in obj && obj.output) {
-      obj = obj.output;
+    if ('output' in (obj as any) && (obj as any).output) {
+      obj = (obj as any).output;
     }
 
     // WebpackConfigOptionsOutput
-    if ('publicPath' in obj && obj.publicPath) {
-      obj = obj.publicPath;
+    if ('publicPath' in (obj as any) && (obj as any).publicPath) {
+      obj = (obj as any).publicPath;
     }
   }
 

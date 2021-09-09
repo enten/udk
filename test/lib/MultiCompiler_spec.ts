@@ -152,8 +152,8 @@ describe('udk/lib/MultiCompiler', () => { // tslint:disable-line:no-big-function
           errors: [],
           createHash: () => { createHashCalled = true; },
           inputFileSystem: { purge: () => { inputFsPurgeCalled = true; } },
-        } as Partial<webpack.compilation.Compilation>),
-        hooks: {} as Partial<webpack.compilation.CompilationHooks>,
+        } as unknown as Partial<webpack.Compilation>),
+        hooks: {} as any,
         _udk: {
           dependencies: [
             {
@@ -201,7 +201,7 @@ describe('udk/lib/MultiCompiler', () => { // tslint:disable-line:no-big-function
           errors: [],
           createHash: () => { createHashCalled = true; },
           inputFileSystem: { purge: () => { inputFsPurgeCalled = true; } },
-        } as Partial<webpack.compilation.Compilation>),
+        } as unknown as Partial<webpack.Compilation>),
         _udk: {
           dependencies: [
             {
@@ -445,7 +445,7 @@ describe('udk/lib/MultiCompiler', () => { // tslint:disable-line:no-big-function
             {
               _udk: {
                 running: false,
-                watchings: [ { invalidate: () => {} } ] as webpack.Compiler.Watching[],
+                watchings: [ { invalidate: () => {} } ] as webpack.Watching[],
               },
             },
           ],

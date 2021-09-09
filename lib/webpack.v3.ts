@@ -12,7 +12,7 @@ import MultiCompiler from './MultiCompiler';
 import { WebpackAPI, WebpackStatic } from './webpack-api';
 
 const Compiler: WebpackStatic<webpack.Compiler> = require('webpack/lib/Compiler');
-const NodeEnvironmentPlugin: WebpackStatic<webpack.Plugin> = require('webpack/lib/node/NodeEnvironmentPlugin'); // tslint:disable-line:max-line-length
+const NodeEnvironmentPlugin: WebpackStatic<webpack.EnvironmentPlugin> = require('webpack/lib/node/NodeEnvironmentPlugin'); // tslint:disable-line:max-line-length
 const WebpackOptionsApply: WebpackStatic = require('webpack/lib/WebpackOptionsApply');
 const WebpackOptionsDefaulter: WebpackStatic = require('webpack/lib/WebpackOptionsDefaulter');
 const validateSchema = require('webpack/lib/validateSchema');
@@ -33,7 +33,7 @@ const webpackV3 = ((options, callback?) => {
 
     compiler = new Compiler();
     (compiler as any).context = options.context; // tslint:disable-line:no-any
-    compiler.options = options;
+    compiler.options = options as webpack.WebpackOptionsNormalized;
     new NodeEnvironmentPlugin().apply(compiler);
     if (options.plugins && Array.isArray(options.plugins)) {
       (compiler as any).apply.apply(compiler, options.plugins);
@@ -57,11 +57,11 @@ const webpackV3 = ((options, callback?) => {
         : (options.watchOptions || {});
 
       return compiler.watch(
-        watchOptions as webpack.WatchOptions,
-        callback as webpack.ICompiler.MultiHandler & webpack.ICompiler.Handler,
+        watchOptions as webpack.Watching['watchOptions'],
+        callback as any,
       );
     }
-    compiler.run(callback as webpack.ICompiler.MultiHandler & webpack.ICompiler.Handler);
+    compiler.run(callback as any);
   }
 
   return compiler;

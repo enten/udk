@@ -17,7 +17,7 @@ export function ngUniversalServe(
   options: UniversalServeOptions,
   context: BuilderContext,
 ): Observable<BuilderOutput> {
-  assertCompatibleAngularVersion(context.workspaceRoot, context.logger);
+  assertCompatibleAngularVersion(context.workspaceRoot);
 
   printServeLabel(context);
 

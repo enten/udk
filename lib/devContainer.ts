@@ -63,36 +63,36 @@ export interface DevContainerConfig extends ContainerConfig {
   ): void;
   onCompilerThisCompilation?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
     compilationParams: any, // tslint:disable-line:no-any
   ): void;
   onCompilerCompilation?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
     compilationParams: any, // tslint:disable-line:no-any
   ): void;
   onCompilerMake?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
     done: (err?: Error) => void,
   ): void;
   onCompilerAfterCompile?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
     done: (err?: Error) => void,
   ): void;
   onCompilerShouldEmit?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
   ): boolean;
   onCompilerEmit?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
     done: (err?: Error) => void,
   ): void;
   onCompilerAfterEmit?(
     compiler: webpack.Compiler,
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack.Compilation,
     done: (err?: Error) => void,
   ): void;
   onCompilerDone?(
@@ -183,11 +183,18 @@ export class DevContainerRuntime extends ContainerRuntime {
   bundles: { [name: string]: WebpackBundle } = {};
   compiler?: webpack.Compiler | webpack.MultiCompiler;
   compilerStats: { [name: string]: webpack.Stats } = {};
-  compilerWatching?: webpack.Watching;
+  compilerWatching?: webpack.Watching | /*webpack.MultiWatching*/{
+    watchings: webpack.Watching[];
+    compiler: webpack.MultiCompiler;
+    invalidate(callback?: any): void;
+    suspend(): void;
+    resume(): void;
+    close(callback: (err: Error) => any): void;
+  };
   webpackConfig?: webpack.Configuration | webpack.Configuration[];
 
   emitBundleAvailable(config: DevContainerConfig, stats: webpack.Stats) {
-    let bundle: WebpackBundle | undefined = this.bundles[stats.compilation.compiler.name];
+    let bundle: WebpackBundle | undefined = this.bundles[stats.compilation.compiler.name as string];
 
     if (bundle && config.autoRestart) {
       if (bundle.mainOutputExportsDefault.close) {
@@ -225,7 +232,7 @@ export class DevContainerRuntime extends ContainerRuntime {
       }
 
       bundle = {
-        name: stats.compilation.compiler.name,
+        name: stats.compilation.compiler.name as string,
         mainOutputPath,
         mainOutputExports,
         mainOutputExportsDefault,
@@ -252,7 +259,7 @@ export class DevContainerRuntime extends ContainerRuntime {
 
       wpc.callSync(stats.compilation.compiler, BUNDLE_AVAILABLE_EVENT, bundle);
 
-      this.bundles[stats.compilation.compiler.name] = bundle;
+      this.bundles[stats.compilation.compiler.name as string] = bundle;
     } catch (err) /* istanbul ignore next */ {
       this.logger.error('\n[udk] RUNTIME ERROR:');
       this.logger.error(`${err && err.stack || err}`);
@@ -533,7 +540,7 @@ export class DevContainerRuntime extends ContainerRuntime {
           stats: webpack.Stats,
           done: (err?: Error) => void,
         ) => {
-          this.compilerStats[compiler.name] = stats;
+          this.compilerStats[compiler.name as string] = stats;
 
           if (done) {
             done();
@@ -582,7 +589,7 @@ export class DevContainerRuntime extends ContainerRuntime {
     this.compilerWatching = this.compiler.watch(
       // todo: handle watchOptions
       {},
-      (err: Error, stats: webpack.Stats | webpack.compilation.MultiStats) => {
+      ((err: Error, stats: webpack.Stats | webpack.MultiStats) => {
         if (err) {
           throw err;
         }
@@ -609,8 +616,8 @@ export class DevContainerRuntime extends ContainerRuntime {
             this.emitBundleAvailable(config, s);
           }
         }
-      },
-    );
+      }) as any,
+    ) as any;
   }
 
   tryPrepareUniversalHMR(
@@ -667,7 +674,7 @@ export class DevContainerRuntime extends ContainerRuntime {
     });
 
     nodeConfigs.forEach((nodeConfig) => {
-      (nodeConfig.plugins as webpack.Plugin[]).push({
+      (nodeConfig.plugins as webpack.WebpackPluginInstance[]).push({
         apply: (compiler: webpack.Compiler) => {
           let hotMiddleware: (
             req: http.IncomingMessage,

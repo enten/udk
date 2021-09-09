@@ -12,13 +12,13 @@ import MultiCompiler from './MultiCompiler';
 import { WebpackAPI, WebpackStatic } from './webpack-api';
 
 const Compiler: WebpackStatic<webpack.Compiler> = require('webpack/lib/Compiler');
-const NodeEnvironmentPlugin: WebpackStatic<webpack.Plugin> = require('webpack/lib/node/NodeEnvironmentPlugin'); // tslint:disable-line:max-line-length
+const NodeEnvironmentPlugin: WebpackStatic<webpack.EnvironmentPlugin> = require('webpack/lib/node/NodeEnvironmentPlugin'); // tslint:disable-line:max-line-length
 const WebpackOptionsApply: WebpackStatic = require('webpack/lib/WebpackOptionsApply');
 const WebpackOptionsDefaulter: WebpackStatic = require('webpack/lib/WebpackOptionsDefaulter');
 const validateSchema = require('webpack/lib/validateSchema');
 const WebpackOptionsValidationError: WebpackStatic = require('webpack/lib/WebpackOptionsValidationError'); // tslint:disable-line:max-line-length
 const webpackOptionsSchema = require('webpack/schemas/WebpackOptions.json');
-const RemovedPluginError: WebpackStatic<webpack.Plugin> = require('webpack/lib/RemovedPluginError');
+const RemovedPluginError: WebpackStatic<WebpackStatic> = require('webpack/lib/RemovedPluginError');
 const version: string = require('webpack/package.json').version;
 
 const webpackV4 = ((options, callback?) => {
@@ -36,11 +36,11 @@ const webpackV4 = ((options, callback?) => {
     options = new WebpackOptionsDefaulter().process(options) as webpack.Configuration;
 
     compiler = new Compiler(options.context);
-    compiler.options = options;
+    compiler.options = options as webpack.WebpackOptionsNormalized;
     new NodeEnvironmentPlugin().apply(compiler);
     if (options.plugins && Array.isArray(options.plugins)) {
       for (const plugin of options.plugins) {
-        plugin.apply(compiler);
+        (plugin as webpack.WebpackPluginInstance).apply(compiler);
       }
     }
     compiler.hooks.environment.call();
@@ -62,11 +62,11 @@ const webpackV4 = ((options, callback?) => {
         : options.watchOptions || {};
 
       return compiler.watch(
-        watchOptions as webpack.WatchOptions,
-        callback as webpack.ICompiler.MultiHandler & webpack.ICompiler.Handler,
+        watchOptions as webpack.Watching['watchOptions'],
+        callback as any,
       );
     }
-    compiler.run(callback as webpack.ICompiler.MultiHandler & webpack.ICompiler.Handler);
+    compiler.run(callback as any);
   }
 
   return compiler;

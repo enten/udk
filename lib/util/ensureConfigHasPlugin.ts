@@ -3,7 +3,7 @@
 import * as webpack from 'webpack';
 
 export interface WebpackPluginStatic {
-  new(...args: any[]): webpack.Plugin; // tslint:disable-line:no-any
+  new(...args: any[]): webpack.WebpackPluginInstance; // tslint:disable-line:no-any
 }
 
 export function ensureConfigHasPlugin(
@@ -29,8 +29,8 @@ export function ensureConfigHasPlugin(
 export function getPluginFromConfig(
   webpackConfig: webpack.Configuration,
   Plugin: WebpackPluginStatic,
-): webpack.Plugin | undefined {
-  let plugin: webpack.Plugin | undefined;
+): webpack.WebpackPluginInstance | undefined {
+  let plugin: webpack.WebpackPluginInstance | undefined;
 
   if (webpackConfig.plugins) {
     plugin = webpackConfig.plugins.find(configPlugin => {

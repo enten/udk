@@ -48,7 +48,7 @@ describe('getOutputPublicPath.ts', () => {
             },
           },
         },
-      } as { compilation: webpack.compilation.Compilation }, {
+      } as { compilation: webpack.Compilation }, {
         endsSlash: false,
         pathOnly: true,
         startsSlash: false,
@@ -62,7 +62,7 @@ describe('getOutputPublicPath.ts', () => {
             },
           },
         },
-      } as webpack.compilation.Compilation, {
+      } as webpack.Compilation, {
         endsSlash: false,
         pathOnly: true,
         startsSlash: false,
@@ -92,7 +92,7 @@ describe('getOutputPublicPath.ts', () => {
 
       expect(getOutputPublicPath({
         publicPath: 'http://foo/bar/',
-      } as webpack.Output, {
+      } as any, {
         endsSlash: false,
         pathOnly: true,
         startsSlash: false,

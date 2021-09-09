@@ -16,7 +16,7 @@ import { getSystemPath, join, json, logging, normalize, relative, resolve, tags,
 
 // #region build-angular imports
 
-import { BrowserBuilderOutput, getAnalyticsConfig, getCompilerConfig } from '@angular-devkit/build-angular/src/browser';
+import { BrowserBuilderOutput } from '@angular-devkit/build-angular/src/browser';
 import { ServerBuilderOutput } from '@angular-devkit/build-angular/src/server';
 import { ExecutionTransformer } from '@angular-devkit/build-angular/src/transforms';
 import { BundleActionExecutor } from '@angular-devkit/build-angular/src/utils/action-executor';
@@ -27,7 +27,6 @@ import { colors as ansiColors, removeColor } from '@angular-devkit/build-angular
 import { copyAssets } from '@angular-devkit/build-angular/src/utils/copy-assets';
 import { deleteOutputDir } from '@angular-devkit/build-angular/src/utils/delete-output-dir';
 import { cachingDisabled } from '@angular-devkit/build-angular/src/utils/environment-options';
-import { mkdir, writeFile } from '@angular-devkit/build-angular/src/utils/fs';
 import { i18nInlineEmittedFiles } from '@angular-devkit/build-angular/src/utils/i18n-inlining';
 import { I18nOptions } from '@angular-devkit/build-angular/src/utils/i18n-options';
 import { FileInfo } from '@angular-devkit/build-angular/src/utils/index-file/augment-index-html';
@@ -55,12 +54,13 @@ import {
 } from '@angular-devkit/build-angular/src/utils/webpack-browser-config';
 import { normalizeExtraEntryPoints } from '@angular-devkit/build-angular/src/webpack/utils/helpers';
 import {
-  getAotConfig,
+  getAnalyticsConfig,
   getBrowserConfig,
   getCommonConfig,
   getServerConfig,
   getStatsConfig,
   getStylesConfig,
+  getTypeScriptConfig,
   getWorkerConfig,
 } from '@angular-devkit/build-angular/src/webpack/configs';
 import { markAsyncChunksNonInitial } from '@angular-devkit/build-angular/src/webpack/utils/async-chunks';
@@ -305,7 +305,7 @@ export async function initializeBrowserBuilder(
       getStylesConfig(wco),
       getStatsConfig(wco),
       getAnalyticsConfig(wco, context),
-      getCompilerConfig(wco),
+      getTypeScriptConfig(wco),
       wco.buildOptions.webWorkerTsConfig ? getWorkerConfig(wco) : {},
     ],
     { differentialLoadingNeeded: isDifferentialLoadingNeeded },
@@ -326,7 +326,7 @@ export async function initializeBrowserBuilder(
   }
 
   const config = await applyWebpackPartialConfig(
-    browserConfig,
+    browserConfig as webpack.Configuration,
     universalOptions.partialBrowserConfig as string,
   );
 
@@ -376,10 +376,13 @@ export function createBrowserBuilderFinalizer(
     const spinner = new Spinner();
     spinner.enabled = options.progress !== false;
 
-    const { webpackStats: webpackRawStats, success, emittedFiles = [] } = buildEvent;
+    const webpackRawStats = buildEvent?.webpackStats as webpack.StatsCompilation;
+
     if (!webpackRawStats) {
       throw new Error('Webpack stats build result is required.');
     }
+
+    const { success, emittedFiles = [] } = buildEvent;
 
     // Fix incorrectly set `initial` value on chunks.
     const extraEntryPoints = [
@@ -700,7 +703,7 @@ export function createBrowserBuilderFinalizer(
           executor.stop();
         }
         for (const result of processResults) {
-          const chunk = webpackStats.chunks?.find((chunk) => chunk.id.toString() === result.name);
+          const chunk = webpackStats.chunks?.find((chunk) => chunk?.id?.toString() === result.name);
 
           if (result.original) {
             bundleInfoStats.push(generateBundleInfoStats(result.original, chunk, 'modern'));
@@ -712,11 +715,12 @@ export function createBrowserBuilderFinalizer(
         }
 
         const unprocessedChunks = webpackStats.chunks?.filter((chunk) => !processResults
-          .find((result) => chunk.id.toString() === result.name),
+          .find((result) => chunk?.id?.toString() === result.name),
         ) || [];
         for (const chunk of unprocessedChunks) {
-          const asset = webpackStats.assets?.find(a => a.name === chunk.files[0]);
-          bundleInfoStats.push(generateBundleStats({ ...chunk, size: asset?.size }));
+          const chunkFile0 = chunk?.files && chunk.files[0];
+          const asset = webpackStats.assets?.find(a => a.name === chunkFile0);
+          bundleInfoStats.push(generateBundleStats({ ...chunk, size: asset?.size } as any));
         }
       } else {
         files = emittedFiles.filter(x => x.name !== 'polyfills-es5');
@@ -747,10 +751,10 @@ export function createBrowserBuilderFinalizer(
         for (const { severity, message } of budgetFailures) {
           switch (severity) {
             case ThresholdSeverity.Warning:
-              webpackStats.warnings.push(message);
+              webpackStats?.warnings?.push({ message });
               break;
             case ThresholdSeverity.Error:
-              webpackStats.errors.push(message);
+              webpackStats?.errors?.push({ message });
               break;
             default:
               assertNever(severity);
@@ -807,7 +811,7 @@ export function createBrowserBuilderFinalizer(
               const { content, warnings, errors } = await indexHtmlGenerator.process({
                 baseHref: getLocaleBaseHref(options, i18n, locale) || options.baseHref,
                 // i18nLocale is used when Ivy is disabled
-                lang: locale || options.i18nLocale,
+                lang: locale || undefined,
                 outputPath,
                 files: mapEmittedFilesToFileInfo(files),
                 noModuleFiles: mapEmittedFilesToFileInfo(noModuleFiles),
@@ -822,8 +826,9 @@ export function createBrowserBuilderFinalizer(
               }
 
               const indexOutput = path.join(outputPath, getIndexOutputFile(options.index));
-              await mkdir(path.dirname(indexOutput), { recursive: true });
-              await writeFile(indexOutput, content);
+
+              await fs.promises.mkdir(path.dirname(indexOutput), { recursive: true });
+              await fs.promises.writeFile(indexOutput, content, 'utf-8');
             } catch (error) {
               spinner.fail('Index html generation failed.');
 
@@ -908,7 +913,7 @@ function assertNever(input: never): never {
 type ArrayElement<A> = A extends ReadonlyArray<infer T> ? T : never;
 function generateBundleInfoStats(
   bundle: ProcessBundleFile,
-  chunk: ArrayElement<webpack.Stats.ToJsonOutput['chunks']> | undefined,
+  chunk: ArrayElement<webpack.StatsCompilation['chunks']> | undefined,
   chunkType: ChunkType,
 ): BundleStats {
   return generateBundleStats(
@@ -916,7 +921,7 @@ function generateBundleInfoStats(
       size: bundle.size,
       files: bundle.map ? [bundle.filename, bundle.map.filename] : [bundle.filename],
       names: chunk?.names,
-      entry: !!chunk?.names.includes('runtime'),
+      // entry: !!chunk?.names.includes('runtime'),
       initial: !!chunk?.initial,
       rendered: true,
       chunkType,
@@ -982,12 +987,12 @@ export async function initializeServerBuilder(
       getServerConfig(wco),
       getStylesConfig(wco),
       getStatsConfig(wco),
-      getAotConfig(wco),
+      getTypeScriptConfig(wco),
     ],
   );
 
   const config = await applyWebpackPartialConfig(
-    serverConfig,
+    serverConfig as webpack.Configuration,
     universalOptions.partialServerConfig as string,
   );
 
@@ -1069,7 +1074,7 @@ export function createUniversalWebpackConfig(
   serverConfig = { name: 'server', ...serverConfig };
 
   const dependencies: string[] = 'dependencies' in serverConfig
-    && serverConfig['dependencies']
+    && (serverConfig as { dependencies?: string[] }).dependencies
     || [];
 
   if (!dependencies.includes(browserConfig.name as string)) {
@@ -1083,7 +1088,7 @@ export function createUniversalWebpackConfig(
 }
 
 export function createUniversalCompilationOutput(
-  multiStats: webpack.compilation.MultiStats & { hasErrors: () => boolean; },
+  multiStats: webpack.MultiStats & { hasErrors: () => boolean; },
 ) {
   const [ browserStats, serverStats ] = multiStats.stats;
 
@@ -1123,7 +1128,7 @@ export function runUniversalWebpackCompiler(
     const callback = ((
       // tslint:disable-next-line: no-any
       err: any,
-      multiStats: webpack.compilation.MultiStats & { hasErrors: () => boolean; },
+      multiStats: webpack.MultiStats & { hasErrors: () => boolean; },
     ) => {
       if (err) {
         return obs.error(err);
@@ -1134,7 +1139,7 @@ export function runUniversalWebpackCompiler(
       if (!browserConfig.watch) {
         obs.complete();
       }
-    }) as unknown as webpack.MultiCompiler.Handler;
+    }) as unknown as (err?: Error, result?: webpack.MultiStats) => any;
 
     let teardown: TeardownLogic = () => {};
 
@@ -1184,7 +1189,7 @@ export async function applyWebpackPartialConfig(
 
 export function adaptWebpackLoggingCallback(logFn: WebpackLoggingCallback) {
   return (
-    multiStats: webpack.Stats | webpack.compilation.MultiStats,
+    multiStats: webpack.Stats | webpack.MultiStats,
     multiConfig: webpack.Configuration | webpack.Configuration[],
   ) => {
     if (!multiStats) {
@@ -1192,13 +1197,13 @@ export function adaptWebpackLoggingCallback(logFn: WebpackLoggingCallback) {
     }
 
     if (!('stats' in multiStats)) {
-      multiStats = { stats: [ multiStats ] } as webpack.compilation.MultiStats;
+      multiStats = { stats: [ multiStats ] } as webpack.MultiStats;
     }
 
     if (!multiConfig) {
-      multiConfig = (multiStats as webpack.compilation.MultiStats).stats.map(stats => {
+      multiConfig = (multiStats as webpack.MultiStats).stats.map(stats => {
         return stats.compilation.compiler.options;
-      });
+      }) as webpack.Configuration[];
     } else if (!Array.isArray(multiConfig)) {
       multiConfig = [ multiConfig ];
     }
@@ -1220,7 +1225,7 @@ export function createLoggingCallback(
 ) {
   const logStats = (stats: webpack.Stats, config: webpack.Configuration) => {
     const statsToOptions = {
-      ...config.stats as webpack.Stats.ToStringOptionsObject,
+      ...config.stats as any,
       colors: options.colors,
     };
 

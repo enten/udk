@@ -32,7 +32,7 @@ export async function ngUniversalBuild(
   options: UniversalBuildOptions,
   context: BuilderContext,
 ): Promise<UniversalBuildOutput> {
-  assertCompatibleAngularVersion(context.workspaceRoot, context.logger);
+  assertCompatibleAngularVersion(context.workspaceRoot);
 
   const projectName = context.target && context.target.project;
   if (!projectName) {

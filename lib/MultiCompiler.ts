@@ -9,7 +9,10 @@ import wpc = require('webpack-plugin-compat');
 export const MultiCompiler1: MultiCompilerStatic = require('webpack/lib/MultiCompiler');
 
 export interface MultiCompilerStatic extends webpack.MultiCompiler {
-  new(compilers: webpack.Compiler[] | WebpackCompilerMap): webpack.MultiCompiler;
+  new(
+    compilers: webpack.Compiler[] | WebpackCompilerMap,
+    options?: webpack.WebpackOptionsNormalized,
+  ): webpack.MultiCompiler;
 }
 
 export interface WebpackCompilerMap {
@@ -18,7 +21,7 @@ export interface WebpackCompilerMap {
 
 export interface WebpackCompilerCompileFn {
   (
-    callback: (err: Error | null, compilation?: webpack.compilation.Compilation) => void,
+    callback: (err: Error | null, compilation?: webpack.Compilation) => void,
   ): void;
 }
 
@@ -31,12 +34,12 @@ export interface WebpackCompiler2 extends webpack.Compiler {
     lastError?: Error | null;
     lastStats?: { [key: string]: any; } | null; // tslint:disable-line:no-any
     running: boolean;
-    compile: WebpackCompilerCompileFn;
+    compile: webpack.Compiler['compile'];
     watch: webpack.Compiler['watch'];
-    watchings: webpack.Compiler.Watching[];
+    watchings: webpack.Watching[];
   };
-  compile: WebpackCompilerCompileFn;
-  createCompilation(): webpack.Stats;
+  // compile: WebpackCompilerCompileFn;
+  // createCompilation(): webpack.Compilation;
 }
 
 export enum WebpackCompilerStage {
@@ -101,7 +104,7 @@ export default class MultiCompiler extends MultiCompiler1 {
     overallOrder: string[];
   };
 
-  constructor(compilers: webpack.Compiler[] | WebpackCompilerMap) {
+  constructor(compilers: webpack.Compiler[] | WebpackCompilerMap, options?: webpack.WebpackOptionsNormalized) {
     compilers = parseMultiCompilerInput(compilers);
 
     const depGraph = createDepGraph(compilers);
@@ -111,7 +114,7 @@ export default class MultiCompiler extends MultiCompiler1 {
       return prepareCompiler(compilerName, depGraph);
     });
 
-    super(compilers);
+    super(compilers, options);
 
     this._udk = {
       depGraph,
@@ -127,14 +130,14 @@ export default class MultiCompiler extends MultiCompiler1 {
 export function createDepGraph(nodes: webpack.Compiler[]): DepGraph<WebpackCompiler2> {
   const graph = new DepGraph<WebpackCompiler2>({ circular: false });
 
-  nodes.forEach((node) => graph.addNode(node.name, node as WebpackCompiler2));
+  nodes.forEach((node) => graph.addNode(node.name as string, node as WebpackCompiler2));
 
   nodes.forEach((node) => {
     const depNames = (node as any).dependencies as string[]; // tslint:disable-line:no-any
 
     if (depNames) {
       depNames.forEach((depName) => {
-        graph.addDependency(node.name, depName);
+        graph.addDependency(node.name as string, depName);
       });
     }
   });
@@ -193,7 +196,7 @@ export function getCancelledCompilation(compiler: WebpackCompiler2) {
 
   compilation.createHash();
 
-  return compilation as webpack.compilation.Compilation;
+  return compilation as webpack.Compilation;
 }
 
 export function getCompiler(compilerName: string, depGraph: DepGraph<WebpackCompiler2>) {
@@ -351,7 +354,7 @@ export function prepareCompiler(
     const cancelledCompilation = getCancelledCompilation(compiler);
 
     if (cancelledCompilation) {
-      return callback(null, cancelledCompilation);
+      return callback(null as unknown as undefined, cancelledCompilation);
     }
 
     compiler._udk.compile(callback);
@@ -362,7 +365,7 @@ export function prepareCompiler(
   }
 
   wpc.for('UdkWatchRunPlugin').tap(compiler, 'watchRun', (
-    compilerV4OrWatchingv3: webpack.Compiler | webpack.Compiler.Watching,
+    compilerV4OrWatchingv3: webpack.Compiler | webpack.Watching,
     done: (err?: Error) => void,
   ) => {
     compiler._udk.running = true;

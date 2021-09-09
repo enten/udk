@@ -98,8 +98,8 @@
     "yargs-parser": "^20.2.7"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^0.1102.8",
-    "@angular/cli": "^11.2.8",
+    "@angular-devkit/build-angular": "^12.2.5",
+    "@angular/cli": "^12.2.5",
     "@types/debug": "^4.1.5",
     "@types/jest": "^26.0.22",
     "@types/loader-utils": "^2.0.2",
@@ -108,7 +108,7 @@
     "@types/rimraf": "^3.0.0",
     "@types/text-table": "^0.2.1",
     "@types/watchpack": "^1.1.6",
-    "@types/webpack": "^4.41.27",
+    "@types/webpack": "^5.28.0",
     "@types/webpack-merge": "^4.1.5",
     "copyfiles": "^2.4.1",
     "coveralls": "^3.1.0",

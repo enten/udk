@@ -460,7 +460,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
         if (webpackConfig.plugins) {
           const compiler = { name: 'foo' } as webpack.Compiler;
           const stats = {} as webpack.Stats;
-          const plugin = webpackConfig.plugins.pop() as webpack.Plugin;
+          const plugin = webpackConfig.plugins.pop() as webpack.WebpackPluginInstance;
 
           expect(plugin).toBeDefined();
 
@@ -757,9 +757,9 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
         expect(Array.isArray(webpackConfig[0].plugins)).toBeTruthy();
         expect(Array.isArray(webpackConfig[1].plugins)).toBeTruthy();
 
-        expect((webpackConfig[0].plugins as webpack.Plugin[])[0])
+        expect((webpackConfig[0].plugins as webpack.WebpackPluginInstance[])[0])
           .toBeInstanceOf(NoEmitOnErrorsPlugin);
-        expect((webpackConfig[1].plugins as webpack.Plugin[])[0])
+        expect((webpackConfig[1].plugins as webpack.WebpackPluginInstance[])[0])
           .toBeInstanceOf(NoEmitOnErrorsPlugin);
       });
 
@@ -777,9 +777,9 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
         expect(Array.isArray(webpackConfig[0].plugins)).toBeTruthy();
         expect(Array.isArray(webpackConfig[1].plugins)).toBeTruthy();
 
-        expect((webpackConfig[0].plugins as webpack.Plugin[])[1])
+        expect((webpackConfig[0].plugins as webpack.WebpackPluginInstance[])[1])
           .toBeInstanceOf(HotModuleReplacementPlugin);
-        expect((webpackConfig[1].plugins as webpack.Plugin[])[1])
+        expect((webpackConfig[1].plugins as webpack.WebpackPluginInstance[])[1])
           .toBeInstanceOf(HotModuleReplacementPlugin);
       });
 
@@ -791,7 +791,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
 
         c.tryPrepareUniversalHMR(config, webpackConfig);
 
-        expect((webpackConfig.plugins as webpack.Plugin[])[1])
+        expect((webpackConfig.plugins as webpack.WebpackPluginInstance[])[1])
           .not.toBeInstanceOf(HotModuleReplacementPlugin);
       });
 
@@ -803,7 +803,7 @@ describe('udk/lib/devContainer', () => { // tslint:disable-line:no-big-function
 
         c.tryPrepareUniversalHMR(config, webpackConfig);
 
-        const customHmrPlugin = (webpackConfig.plugins as webpack.Plugin[])[2] as webpack.Plugin;
+        const customHmrPlugin = (webpackConfig.plugins as webpack.WebpackPluginInstance[])[2] as webpack.WebpackPluginInstance;
 
         expect(customHmrPlugin).toBeDefined();
         expect(typeof customHmrPlugin.apply).toEqual('function');

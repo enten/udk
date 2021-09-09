@@ -312,7 +312,7 @@ export class NgContainer extends DevContainerRuntime {
     wpc.for('NgContainerFinalizersPlugin').tap(
       this.compiler,
       'done',
-      async (multiStats: webpack.compilation.MultiStats & { hasErrors: () => boolean; }) => {
+      async (multiStats: webpack.MultiStats & { hasErrors: () => boolean; }) => {
         const universalBuildResult = createUniversalCompilationOutput(multiStats);
 
         await browserBuilderFinalizer(startTime, {

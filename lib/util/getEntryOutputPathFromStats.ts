@@ -79,7 +79,7 @@ export function getEntryOutputPathFromStats(
     // * in webpack4, entrypoints is a Map object
     // * in webpack3, entrypoints is a plain object
     if (typeof entrypoints.get === 'function') {
-      const entrypoinsMap = entrypoints as WebpackCompilationEntrypointsV4;
+      const entrypoinsMap = entrypoints as unknown as WebpackCompilationEntrypointsV4;
 
       entry = entryName
         ? entrypoinsMap.get(entryName)

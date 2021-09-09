@@ -114,7 +114,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             get: name => {},
           } as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats, { entryName: 'foo' })).toEqual(null);
+      } as unknown as webpack.Stats, { entryName: 'foo' })).toEqual(null);
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -141,7 +141,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
         compilation: {
           entrypoints: {} as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats)).toEqual(null);
+      } as unknown as webpack.Stats)).toEqual(null);
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -163,7 +163,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             },
           } as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats)).toEqual('main.js');
+      } as unknown as webpack.Stats)).toEqual('main.js');
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -185,7 +185,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             },
           } as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats)).toEqual('index.js');
+      } as unknown as webpack.Stats)).toEqual('index.js');
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -207,7 +207,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             },
           } as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats)).toEqual('server.js');
+      } as unknown as webpack.Stats)).toEqual('server.js');
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -229,7 +229,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             },
           } as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats, 'foo')).toEqual('foo.js');
+      } as unknown as webpack.Stats, 'foo')).toEqual('foo.js');
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -251,7 +251,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             },
           } as WebpackCompilationEntrypointsV4,
         },
-      } as webpack.Stats, { entryName: 'foo' })).toEqual('foo.js');
+      } as unknown as webpack.Stats, { entryName: 'foo' })).toEqual('foo.js');
 
       expect(getEntryOutputPathFromStats({
         compilation: {
@@ -276,7 +276,7 @@ describe('udk/lib/util/getEntryOutputPathFromStats', () => { // tslint:disable-l
             path: 'foo',
           },
         },
-      } as webpack.Stats, { entryName: 'bar' })).toEqual(path.join('foo', 'bar.js'));
+      } as unknown as webpack.Stats, { entryName: 'bar' })).toEqual(path.join('foo', 'bar.js'));
     });
 
     it('should return output path from stats json entrypoints and chunks', () => {
