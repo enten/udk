@@ -8,6 +8,16 @@
 [![Coverage Status](https://coveralls.io/repos/github/enten/udk/badge.svg)](https://coveralls.io/github/enten/udk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
+## THE UDK PROJECT SUPPORT IS CURRENTLY SUSPENDED
+
+> After [Webpack 5 release (2020-10-10)](https://webpack.js.org/blog/2020-10-10-webpack-5-release/), major changes are needed to make udk compatible.
+>
+> We ignore what will be the future of udk for a possible next major release: maybe we will focus on the main feature which enhances multicompilers dependencies in sequential way.
+>
+> When developments started, we thought that [webpack multicompiler](https://webpack.js.org/api/node/#multicompiler) module was a great feature to optimize building workflows. But we found that multicompiler is rarely used.
+>
+> udk packages will continue working indefinitely so no immediate changes are necessary.
+
 ## Features
 
 * Starts universal application development fastly (from scratch/without boilerplate)
